@@ -78,21 +78,6 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Available commands
-
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start the local development server |
-| `npm run lint` | Run ESLint with zero warnings allowed |
-| `npm run type-check` | Run the TypeScript compiler without emitting files |
-| `npm test` | Run the calculation and validation test suite |
-| `npm run build` | Verify migrations and create a production build |
-| `npm run verify:migrations` | Check migration order and required security rules |
-| `npm run verify:supabase` | Check the configured live Supabase schema |
-| `npm run verify` | Run lint, type-check, tests, migration checks, and build |
-
-For production deployment and release checks, see [production-check.md](production-check.md).
-
 ## Limitations
 
 - There is no authentication, ownership, or role-based access control in this MVP.
