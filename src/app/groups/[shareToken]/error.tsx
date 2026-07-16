@@ -23,7 +23,8 @@ export default function GroupError({ unstable_retry }: GroupErrorProps) {
           We couldn’t load this group.
         </h1>
         <p className="mt-4 max-w-xl text-lg leading-8 text-muted-foreground">
-          Something went wrong while loading the members. Please try again.
+          Something went wrong while loading the group details. Please try
+          again.
         </p>
         <Button size="xl" className="mt-8" onClick={() => unstable_retry()}>
           Try again

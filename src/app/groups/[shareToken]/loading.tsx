@@ -22,22 +22,43 @@ export default function GroupLoading() {
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {Array.from({ length: 3 }, (_, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <Skeleton className="size-10 rounded-full" />
-                  <Skeleton className="h-4 w-32" />
+                <div
+                  key={index}
+                  className="flex items-start justify-between gap-4"
+                >
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                  <Skeleton className="h-5 w-16" />
                 </div>
               ))}
             </CardContent>
           </Card>
-          <Card className="self-start">
-            <CardHeader>
-              <Skeleton className="h-5 w-40" />
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-4/5" />
-            </CardContent>
-          </Card>
+          <div className="flex flex-col gap-6">
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-5 w-24" />
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                {Array.from({ length: 2 }, (_, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <Skeleton className="size-10 rounded-full" />
+                    <Skeleton className="h-4 w-28" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-5 w-40" />
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
     </div>
