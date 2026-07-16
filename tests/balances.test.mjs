@@ -65,7 +65,7 @@ test("combines multiple expenses and preserves member order", () => {
   ]);
 });
 
-test("settlement payments reduce the sender and increase the receiver", () => {
+test("settlement payments move the sender and receiver toward zero", () => {
   const balances = calculateMemberBalances(
     members,
     [
@@ -80,8 +80,8 @@ test("settlement payments reduce the sender and increase the receiver", () => {
       },
     ],
     [
-      { fromMemberId: "suman", toMemberId: "alex", amountCents: 3000 },
-      { fromMemberId: "suman", toMemberId: "maya", amountCents: 3000 },
+      { fromMemberId: "alex", toMemberId: "suman", amountCents: 3000 },
+      { fromMemberId: "maya", toMemberId: "suman", amountCents: 3000 },
     ],
   );
 
@@ -120,6 +120,13 @@ test("rejects invalid financial records", () => {
     () =>
       calculateMemberBalances(members, [], [
         { fromMemberId: "unknown", toMemberId: "suman", amountCents: 100 },
+      ]),
+    RangeError,
+  );
+  assert.throws(
+    () =>
+      calculateMemberBalances(members, [], [
+        { fromMemberId: "suman", toMemberId: "suman", amountCents: 100 },
       ]),
     RangeError,
   );
