@@ -95,16 +95,21 @@ export function calculateMemberBalances(
 
   for (const payment of settlementPayments) {
     assertCents(payment.amountCents, "Settlement payment", false);
+
+    if (payment.fromMemberId === payment.toMemberId) {
+      throw new RangeError("Settlement members must be different.");
+    }
+
     const senderBalance = getMemberBalance(balances, payment.fromMemberId);
     const receiverBalance = getMemberBalance(balances, payment.toMemberId);
 
     balances.set(
       payment.fromMemberId,
-      senderBalance - payment.amountCents,
+      senderBalance + payment.amountCents,
     );
     balances.set(
       payment.toMemberId,
-      receiverBalance + payment.amountCents,
+      receiverBalance - payment.amountCents,
     );
   }
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Link2, ReceiptText, Scale, Users } from "lucide-react";
+import { HandCoins, History, Link2, ReceiptText, Scale, Users } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { AppLogo } from "@/components/layout/app-logo";
@@ -15,6 +15,14 @@ import {
 import { AddMemberDialog } from "@/components/members/add-member-dialog";
 import { MemberList } from "@/components/members/member-list";
 import {
+  SettlementHistory,
+  type SettlementHistoryItem,
+} from "@/components/settlements/settlement-history";
+import {
+  SettlementList,
+  type SettlementListItem,
+} from "@/components/settlements/settlement-list";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -22,6 +30,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { calculateMemberBalances } from "@/lib/calculations/balances";
+import { simplifySettlements } from "@/lib/calculations/settlements";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type GroupPageProps = {
@@ -72,8 +81,12 @@ export default async function GroupPage({ params }: GroupPageProps) {
       .order("created_at", { ascending: false }),
     supabase
       .from("settlement_payments")
-      .select("from_member_id, to_member_id, amount_cents")
-      .eq("group_id", group.id),
+      .select(
+        "id, from_member_id, to_member_id, amount_cents, payment_date",
+      )
+      .eq("group_id", group.id)
+      .order("payment_date", { ascending: false })
+      .order("created_at", { ascending: false }),
   ]);
 
   const { data: members, error: membersError } = membersResult;
@@ -119,7 +132,7 @@ export default async function GroupPage({ params }: GroupPageProps) {
     };
   });
   const memberNames = new Map(members.map((member) => [member.id, member.name]));
-  const balances: BalanceListItem[] = calculateMemberBalances(
+  const calculatedBalances = calculateMemberBalances(
     members,
     expenseRows.map((expense) => ({
       amountCents: Number(expense.amount_cents),
@@ -134,10 +147,30 @@ export default async function GroupPage({ params }: GroupPageProps) {
       toMemberId: payment.to_member_id,
       amountCents: Number(payment.amount_cents),
     })),
-  ).map((balance) => ({
+  );
+  const balances: BalanceListItem[] = calculatedBalances.map((balance) => ({
     ...balance,
     memberName: memberNames.get(balance.memberId) ?? "Unknown member",
   }));
+  const settlements: SettlementListItem[] = simplifySettlements(
+    calculatedBalances,
+  ).map((settlement) => ({
+    ...settlement,
+    fromMemberName:
+      memberNames.get(settlement.fromMemberId) ?? "Unknown member",
+    toMemberName:
+      memberNames.get(settlement.toMemberId) ?? "Unknown member",
+  }));
+  const settlementHistory: SettlementHistoryItem[] =
+    settlementPaymentRows.map((payment) => ({
+      id: payment.id,
+      fromMemberName:
+        memberNames.get(payment.from_member_id) ?? "Unknown member",
+      toMemberName:
+        memberNames.get(payment.to_member_id) ?? "Unknown member",
+      amountCents: Number(payment.amount_cents),
+      paymentDate: payment.payment_date,
+    }));
 
   return (
     <div className="min-h-dvh">
@@ -188,6 +221,29 @@ export default async function GroupPage({ params }: GroupPageProps) {
               <CardHeader>
                 <div className="flex items-center gap-3">
                   <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                    <HandCoins className="size-5" />
+                  </span>
+                  <div>
+                    <CardTitle>Settle up</CardTitle>
+                    <CardDescription>
+                      Recommended payments to settle the group.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <SettlementList
+                  shareToken={shareToken}
+                  settlements={settlements}
+                  hasExpenses={expenses.length > 0}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
                     <ReceiptText className="size-5" />
                   </span>
                   <div>
@@ -203,6 +259,25 @@ export default async function GroupPage({ params }: GroupPageProps) {
                   expenses={expenses}
                   hasMembers={members.length > 0}
                 />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                    <History className="size-5" />
+                  </span>
+                  <div>
+                    <CardTitle>Payment history</CardTitle>
+                    <CardDescription>
+                      Settlement payments recorded by this group.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <SettlementHistory payments={settlementHistory} />
               </CardContent>
             </Card>
           </div>
