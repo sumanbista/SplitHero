@@ -1,6 +1,7 @@
 import { CircleCheck, Scale } from "lucide-react";
 
 import { MemberAvatar } from "@/components/members/member-avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -8,7 +9,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Separator } from "@/components/ui/separator";
 import type { MemberBalance } from "@/lib/calculations/balances";
 import { cn } from "@/lib/utils";
 import { formatCurrencyFromCents } from "@/lib/utils/currency";
@@ -19,10 +19,11 @@ export type BalanceListItem = MemberBalance & {
 
 type BalanceListProps = {
   balances: BalanceListItem[];
+  hasExpenses: boolean;
 };
 
-export function BalanceList({ balances }: BalanceListProps) {
-  if (balances.length === 0) {
+export function BalanceList({ balances, hasExpenses }: BalanceListProps) {
+  if (balances.length === 0 || !hasExpenses) {
     return (
       <Empty className="border bg-primary-soft/40 py-10">
         <EmptyHeader>
@@ -31,7 +32,9 @@ export function BalanceList({ balances }: BalanceListProps) {
           </EmptyMedia>
           <EmptyTitle>No balances yet</EmptyTitle>
           <EmptyDescription>
-            Add group members to start tracking balances.
+            {balances.length === 0
+              ? "Add group members to start tracking balances."
+              : "Add the first shared expense to calculate everyone’s balance."}
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -39,17 +42,18 @@ export function BalanceList({ balances }: BalanceListProps) {
   }
 
   return (
-    <ul aria-label="Member balances" className="flex flex-col">
-      {balances.map((balance, index) => (
+    <ul aria-label="Member balances" className="grid gap-3 sm:grid-cols-2">
+      {balances.map((balance) => (
         <li key={balance.memberId}>
-          {index > 0 ? <Separator /> : null}
-          <div className="flex items-center gap-3 py-4 first:pt-0 last:pb-0">
-            <MemberAvatar name={balance.memberName} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{balance.memberName}</p>
+          <Card size="sm" className="h-full">
+            <CardHeader className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+              <MemberAvatar name={balance.memberName} />
+              <CardTitle className="truncate">{balance.memberName}</CardTitle>
+            </CardHeader>
+            <CardContent>
               <p
                 className={cn(
-                  "mt-0.5 text-sm font-medium",
+                  "text-sm font-medium",
                   balance.state === "receives" && "text-primary",
                   balance.state === "owes" && "text-warning",
                   balance.state === "settled" && "text-success",
@@ -64,13 +68,13 @@ export function BalanceList({ balances }: BalanceListProps) {
                   </span>
                 ) : null}
               </p>
-            </div>
-            {balance.state !== "settled" ? (
-              <p className="shrink-0 text-lg font-semibold tabular-nums">
-                {formatCurrencyFromCents(Math.abs(balance.balanceCents))}
-              </p>
-            ) : null}
-          </div>
+              {balance.state !== "settled" ? (
+                <p className="mt-2 text-xl font-semibold tabular-nums">
+                  {formatCurrencyFromCents(Math.abs(balance.balanceCents))}
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
         </li>
       ))}
     </ul>
