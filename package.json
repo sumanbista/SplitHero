@@ -5,11 +5,19 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run verify:migrations",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "type-check": "tsc --noEmit",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "verify:migrations": "node scripts/verify-migrations.mjs",
+    "verify:supabase": "node scripts/verify-supabase.mjs",
+    "verify": "npm run lint && npm run type-check && npm test && npm run build",
+    "check:production": "npm run verify && npm run verify:supabase"
+  },
+  "engines": {
+    "node": ">=20.9.0"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -27,6 +35,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@next/env": "16.2.10",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
