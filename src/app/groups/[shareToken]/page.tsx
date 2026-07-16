@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { HandCoins, History, Link2, ReceiptText, Scale, Users } from "lucide-react";
+import type { ReactNode } from "react";
+import { HandCoins, History, ReceiptText, Scale, Users } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { AppLogo } from "@/components/layout/app-logo";
@@ -12,6 +13,8 @@ import {
   BalanceList,
   type BalanceListItem,
 } from "@/components/groups/balance-list";
+import { GroupSummary } from "@/components/groups/group-summary";
+import { ShareGroupButton } from "@/components/groups/share-group-button";
 import { AddMemberDialog } from "@/components/members/add-member-dialog";
 import { MemberList } from "@/components/members/member-list";
 import {
@@ -36,6 +39,39 @@ import { createAdminClient } from "@/lib/supabase/admin";
 type GroupPageProps = {
   params: Promise<{ shareToken: string }>;
 };
+
+type DashboardSectionProps = {
+  id: string;
+  title: string;
+  description: string;
+  icon: ReactNode;
+  children: ReactNode;
+};
+
+function DashboardSection({
+  id,
+  title,
+  description,
+  icon,
+  children,
+}: DashboardSectionProps) {
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary [&_svg]:size-5">
+          {icon}
+        </span>
+        <div>
+          <h2 id={id} className="text-lg font-semibold tracking-tight">
+            {title}
+          </h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 function getRelatedRecord<T>(relation: T | T[] | null) {
   return Array.isArray(relation) ? (relation[0] ?? null) : relation;
@@ -171,13 +207,17 @@ export default async function GroupPage({ params }: GroupPageProps) {
       amountCents: Number(payment.amount_cents),
       paymentDate: payment.payment_date,
     }));
+  const totalSpentCents = expenses.reduce(
+    (total, expense) => total + expense.amountCents,
+    0,
+  );
 
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex w-full max-w-5xl items-center px-6 py-6 sm:px-8">
         <AppLogo showMark />
       </header>
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pt-10 pb-20 sm:px-8 sm:pt-16">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pt-8 pb-20 sm:px-8 sm:pt-12">
         <section className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-primary">Your group</p>
@@ -197,92 +237,66 @@ export default async function GroupPage({ params }: GroupPageProps) {
         </section>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="flex flex-col gap-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                    <Scale className="size-5" />
-                  </span>
-                  <div>
-                    <CardTitle>Balances</CardTitle>
-                    <CardDescription>
-                      What each person owes or gets back.
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <BalanceList balances={balances} />
-              </CardContent>
-            </Card>
+          <div className="flex min-w-0 flex-col gap-10">
+            <GroupSummary
+              totalSpentCents={totalSpentCents}
+              memberCount={members.length}
+              expenseCount={expenses.length}
+              settlementCount={settlements.length}
+            />
 
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                    <HandCoins className="size-5" />
-                  </span>
-                  <div>
-                    <CardTitle>Settle up</CardTitle>
-                    <CardDescription>
-                      Recommended payments to settle the group.
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <SettlementList
-                  shareToken={shareToken}
-                  settlements={settlements}
-                  hasExpenses={expenses.length > 0}
-                />
-              </CardContent>
-            </Card>
+            <DashboardSection
+              id="settlements-title"
+              title="Settle up"
+              description="Recommended payments to settle the group."
+              icon={<HandCoins aria-hidden="true" />}
+            >
+              <SettlementList
+                shareToken={shareToken}
+                settlements={settlements}
+                hasExpenses={expenses.length > 0}
+              />
+            </DashboardSection>
 
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                    <ReceiptText className="size-5" />
-                  </span>
-                  <div>
-                    <CardTitle>Expenses</CardTitle>
-                    <CardDescription>
-                      Shared costs recorded by this group.
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ExpenseList
-                  expenses={expenses}
-                  hasMembers={members.length > 0}
-                />
-              </CardContent>
-            </Card>
+            <DashboardSection
+              id="balances-title"
+              title="Balances"
+              description="What each person owes or gets back."
+              icon={<Scale aria-hidden="true" />}
+            >
+              <BalanceList
+                balances={balances}
+                hasExpenses={expenses.length > 0}
+              />
+            </DashboardSection>
 
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                    <History className="size-5" />
-                  </span>
-                  <div>
-                    <CardTitle>Payment history</CardTitle>
-                    <CardDescription>
-                      Settlement payments recorded by this group.
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <SettlementHistory payments={settlementHistory} />
-              </CardContent>
-            </Card>
+            <DashboardSection
+              id="expenses-title"
+              title="Expenses"
+              description="Shared costs recorded by this group."
+              icon={<ReceiptText aria-hidden="true" />}
+            >
+              <ExpenseList
+                expenses={expenses}
+                hasMembers={members.length > 0}
+              />
+            </DashboardSection>
+
+            <DashboardSection
+              id="payment-history-title"
+              title="Payment history"
+              description="Settlement payments recorded by this group."
+              icon={<History aria-hidden="true" />}
+            >
+              <Card>
+                <CardContent>
+                  <SettlementHistory payments={settlementHistory} />
+                </CardContent>
+              </Card>
+            </DashboardSection>
           </div>
 
-          <aside className="flex flex-col gap-6">
+          <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-6 lg:self-start">
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -302,16 +316,11 @@ export default async function GroupPage({ params }: GroupPageProps) {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Link2 className="size-4 text-primary" />
-                  Keep this link handy
-                </CardTitle>
+                <CardTitle>Share group</CardTitle>
+                <CardDescription>Keep everyone on the same page.</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="leading-6 text-muted-foreground">
-                  Share this page’s private link with everyone who belongs in
-                  the group.
-                </p>
+                <ShareGroupButton />
               </CardContent>
             </Card>
           </aside>

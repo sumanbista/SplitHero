@@ -6,13 +6,20 @@ import { ArrowRight, CircleCheck, HandCoins } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Separator } from "@/components/ui/separator";
 import {
   recordSettlementPayment,
   type RecordSettlementState,
@@ -46,7 +53,7 @@ function SettlementPaymentForm({
   const [state, formAction, pending] = useActionState(action, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col items-stretch gap-3 sm:items-end">
+    <form action={formAction} className="flex w-full flex-col gap-3">
       <input
         type="hidden"
         name="fromMemberId"
@@ -58,11 +65,11 @@ function SettlementPaymentForm({
         name="amountCents"
         value={settlement.amountCents}
       />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className="w-full sm:w-auto sm:self-end">
         {pending ? "Recording…" : "Record payment"}
       </Button>
       {state.formError ? (
-        <Alert variant="destructive" className="sm:max-w-xs">
+        <Alert variant="destructive">
           <AlertDescription>{state.formError}</AlertDescription>
         </Alert>
       ) : null}
@@ -96,31 +103,34 @@ export function SettlementList({
   }
 
   return (
-    <ul aria-label="Recommended payments" className="flex flex-col">
-      {settlements.map((settlement, index) => (
+    <ul aria-label="Recommended payments" className="flex flex-col gap-3">
+      {settlements.map((settlement) => (
         <li
           key={`${settlement.fromMemberId}-${settlement.toMemberId}`}
         >
-          {index > 0 ? <Separator /> : null}
-          <article className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 font-semibold">
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                 <span className="truncate">{settlement.fromMemberName}</span>
                 <ArrowRight aria-hidden="true" />
                 <span className="truncate">{settlement.toMemberName}</span>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
+              </CardTitle>
+              <CardDescription>
                 {settlement.fromMemberName} pays {settlement.toMemberName}
-              </p>
-              <p className="mt-2 text-xl font-semibold tabular-nums">
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold tabular-nums">
                 {formatCurrencyFromCents(settlement.amountCents)}
               </p>
-            </div>
-            <SettlementPaymentForm
-              shareToken={shareToken}
-              settlement={settlement}
-            />
-          </article>
+            </CardContent>
+            <CardFooter>
+              <SettlementPaymentForm
+                shareToken={shareToken}
+                settlement={settlement}
+              />
+            </CardFooter>
+          </Card>
         </li>
       ))}
     </ul>
