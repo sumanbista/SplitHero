@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
-import { Link2, Users } from "lucide-react";
+import { Link2, ReceiptText, Users } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { AppLogo } from "@/components/layout/app-logo";
+import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
+import {
+  ExpenseList,
+  type ExpenseListItem,
+} from "@/components/expenses/expense-list";
 import { AddMemberDialog } from "@/components/members/add-member-dialog";
 import { MemberList } from "@/components/members/member-list";
 import {
@@ -17,6 +22,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 type GroupPageProps = {
   params: Promise<{ shareToken: string }>;
 };
+
+function getRelatedRecord<T>(relation: T | T[] | null) {
+  return Array.isArray(relation) ? (relation[0] ?? null) : relation;
+}
 
 export const metadata: Metadata = {
   title: "Your group",
@@ -40,15 +49,63 @@ export default async function GroupPage({ params }: GroupPageProps) {
     notFound();
   }
 
-  const { data: members, error: membersError } = await supabase
-    .from("members")
-    .select("id, name")
-    .eq("group_id", group.id)
-    .order("created_at", { ascending: true });
+  const [membersResult, expensesResult] = await Promise.all([
+    supabase
+      .from("members")
+      .select("id, name")
+      .eq("group_id", group.id)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true }),
+    supabase
+      .from("expenses")
+      .select(
+        "id, title, amount_cents, expense_date, paid_by:members!expenses_paid_by_member_id_fkey(id, name), participants:expense_participants(share_cents, member:members(id, name))",
+      )
+      .eq("group_id", group.id)
+      .order("expense_date", { ascending: false })
+      .order("created_at", { ascending: false }),
+  ]);
 
-  if (membersError) {
-    throw new Error("Unable to load group members.");
+  const { data: members, error: membersError } = membersResult;
+  const { data: expenseRows, error: expensesError } = expensesResult;
+
+  if (membersError || expensesError) {
+    throw new Error("Unable to load group details.");
   }
+
+  const memberOrder = new Map(
+    members.map((member, index) => [member.id, index]),
+  );
+  const expenses: ExpenseListItem[] = expenseRows.map((expense) => {
+    const paidBy = getRelatedRecord(expense.paid_by);
+
+    return {
+      id: expense.id,
+      title: expense.title,
+      amountCents: Number(expense.amount_cents),
+      expenseDate: expense.expense_date,
+      paidByName: paidBy?.name ?? "Unknown member",
+      participants: expense.participants
+        .flatMap((participant) => {
+          const member = getRelatedRecord(participant.member);
+
+          return member
+            ? [
+                {
+                  memberId: member.id,
+                  memberName: member.name,
+                  shareCents: Number(participant.share_cents),
+                },
+              ]
+            : [];
+        })
+        .toSorted(
+          (left, right) =>
+            (memberOrder.get(left.memberId) ?? Number.MAX_SAFE_INTEGER) -
+            (memberOrder.get(right.memberId) ?? Number.MAX_SAFE_INTEGER),
+        ),
+    };
+  });
 
   return (
     <div className="min-h-dvh">
@@ -68,7 +125,10 @@ export default async function GroupPage({ params }: GroupPageProps) {
                 : `${members.length} ${members.length === 1 ? "member" : "members"}`}
             </p>
           </div>
-          <AddMemberDialog shareToken={shareToken} />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+            <AddExpenseDialog shareToken={shareToken} members={members} />
+            <AddMemberDialog shareToken={shareToken} />
+          </div>
         </section>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
@@ -76,35 +136,57 @@ export default async function GroupPage({ params }: GroupPageProps) {
             <CardHeader>
               <div className="flex items-center gap-3">
                 <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                  <Users className="size-5" />
+                  <ReceiptText className="size-5" />
                 </span>
                 <div>
-                  <CardTitle>Members</CardTitle>
+                  <CardTitle>Expenses</CardTitle>
                   <CardDescription>
-                    Everyone included in this group.
+                    Shared costs recorded by this group.
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <MemberList members={members} />
+              <ExpenseList
+                expenses={expenses}
+                hasMembers={members.length > 0}
+              />
             </CardContent>
           </Card>
 
-          <Card className="self-start">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Link2 className="size-4 text-primary" />
-                Keep this link handy
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="leading-6 text-muted-foreground">
-                Share this page’s private link with everyone who belongs in the
-                group.
-              </p>
-            </CardContent>
-          </Card>
+          <aside className="flex flex-col gap-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                    <Users className="size-5" />
+                  </span>
+                  <div>
+                    <CardTitle>Members</CardTitle>
+                    <CardDescription>Everyone in this group.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <MemberList members={members} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Link2 className="size-4 text-primary" />
+                  Keep this link handy
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="leading-6 text-muted-foreground">
+                  Share this page’s private link with everyone who belongs in
+                  the group.
+                </p>
+              </CardContent>
+            </Card>
+          </aside>
         </div>
       </main>
     </div>
