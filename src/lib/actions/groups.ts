@@ -2,8 +2,10 @@
 
 import "server-only";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { getCurrentUser } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateShareToken } from "@/lib/utils/share-token";
 import { createGroupSchema } from "@/lib/validations/group";
@@ -33,6 +35,10 @@ export async function createGroup(
   let shareToken: string | undefined;
 
   try {
+    // The owner comes from Supabase's server-validated session, never from
+    // client-submitted form data. A missing session intentionally creates the
+    // same unowned public group supported by guest mode.
+    const user = await getCurrentUser();
     const supabase = createAdminClient();
 
     for (let attempt = 0; attempt < MAX_TOKEN_ATTEMPTS; attempt += 1) {
@@ -40,6 +46,7 @@ export async function createGroup(
       const { error } = await supabase.from("groups").insert({
         name: validation.data.name,
         share_token: candidate,
+        created_by_user_id: user?.id ?? null,
       });
 
       if (!error) {
@@ -68,5 +75,6 @@ export async function createGroup(
     };
   }
 
+  revalidatePath("/dashboard");
   redirect(`/groups/${shareToken}`);
 }

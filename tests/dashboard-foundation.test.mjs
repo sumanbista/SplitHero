@@ -33,11 +33,22 @@ test("dashboard group loading is scoped to the signed-in user", async () => {
   assert.doesNotMatch(source, /\.is\("created_by_user_id", null\)/);
 });
 
-test("anonymous group creation remains unowned", async () => {
+test("group ownership is derived from the server-validated session", async () => {
   const source = await readFile(
     new URL("../src/lib/actions/groups.ts", import.meta.url),
     "utf8",
   );
 
-  assert.doesNotMatch(source, /created_by_user_id/);
+  assert.match(source, /const user = await getCurrentUser\(\)/);
+  assert.match(source, /created_by_user_id: user\?\.id \?\? null/);
+  assert.doesNotMatch(source, /formData\.get\(["']created_by_user_id["']\)/);
+});
+
+test("group creation refreshes the owned-group dashboard", async () => {
+  const source = await readFile(
+    new URL("../src/lib/actions/groups.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /revalidatePath\(["']\/dashboard["']\)/);
 });

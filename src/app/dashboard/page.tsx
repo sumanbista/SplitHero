@@ -143,7 +143,7 @@ export default async function DashboardPage() {
                     href="/#create-group"
                     className={cn(buttonVariants({ size: "lg" }))}
                   >
-                    Create a public group
+                    Create a group
                   </Link>
                 </EmptyContent>
               </Empty>

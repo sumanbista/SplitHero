@@ -23,7 +23,13 @@ import { Input } from "@/components/ui/input";
 
 const initialCreateGroupState: CreateGroupState = {};
 
-export function CreateGroupForm() {
+type CreateGroupFormProps = {
+  isAuthenticated?: boolean;
+};
+
+export function CreateGroupForm({
+  isAuthenticated = false,
+}: CreateGroupFormProps) {
   const [state, formAction, pending] = useActionState(
     createGroup,
     initialCreateGroupState,
@@ -73,7 +79,9 @@ export function CreateGroupForm() {
         </CardContent>
         <CardFooter className="border-t border-border bg-muted/40 px-6 py-4 sm:px-10 sm:py-6">
           <p className="text-sm text-muted-foreground">
-            No account needed. Share the link with your group.
+            {isAuthenticated
+              ? "This group will be saved to your dashboard. Its share link still works for everyone."
+              : "No account needed. Share the link with your group."}
           </p>
         </CardFooter>
       </Card>

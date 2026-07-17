@@ -61,7 +61,7 @@ export default async function Home({ searchParams }: HomeProps) {
               <HeroNetwork />
             </div>
           </div>
-          <CreateGroupForm />
+          <CreateGroupForm isAuthenticated={Boolean(user)} />
         </section>
 
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
