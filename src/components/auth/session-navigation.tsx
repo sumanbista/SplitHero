@@ -30,12 +30,12 @@ export function SessionNavigation({ email }: SessionNavigationProps) {
 
   return (
     <>
-      <span
-        className="hidden max-w-48 truncate text-sm text-muted-foreground md:inline"
-        title={email}
+      <Link
+        href="/dashboard"
+        className={cn(buttonVariants({ variant: "ghost", size: "lg" }))}
       >
-        {email}
-      </span>
+        Dashboard
+      </Link>
       <form action={logout}>
         <Button type="submit" variant="outline" size="lg">
           Log out

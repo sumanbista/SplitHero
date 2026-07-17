@@ -53,6 +53,7 @@ const tables = [
   "expenses",
   "expense_participants",
   "settlement_payments",
+  "profiles",
 ];
 
 for (const table of tables) {
