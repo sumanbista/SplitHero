@@ -15,11 +15,11 @@ export async function getCurrentUser(): Promise<User | null> {
   return user;
 }
 
-export async function requireUser(nextPath = "/protected"): Promise<User> {
+export async function requireUser(nextPath = "/dashboard"): Promise<User> {
   const user = await getCurrentUser();
 
   if (!user) {
-    const safeNextPath = getSafeNextPath(nextPath, "/protected");
+    const safeNextPath = getSafeNextPath(nextPath, "/dashboard");
     redirect(`/login?next=${encodeURIComponent(safeNextPath)}`);
   }
 
