@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, FolderHeart, Mail } from "lucide-react";
+import { ArrowRight, CalendarDays, FolderHeart, Mail, MailOpen } from "lucide-react";
 
 import { AppLogo } from "@/components/layout/app-logo";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -22,6 +23,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { logout } from "@/lib/actions/auth";
+import { acceptInvitation, declineInvitation } from "@/lib/actions/invitations";
 import { requireUser } from "@/lib/auth/session";
 import {
   getAccountDisplayName,
@@ -29,7 +31,9 @@ import {
 } from "@/lib/dashboard/account";
 import {
   getDashboardData,
+  type MemberGroupSummary,
   type OwnedGroupSummary,
+  type PendingInvitationSummary,
 } from "@/lib/dashboard/data";
 import { cn } from "@/lib/utils";
 
@@ -44,13 +48,23 @@ export const metadata: Metadata = {
   description: "Your SplitHero account and connected groups.",
 };
 
-function OwnedGroupCard({ group }: { group: OwnedGroupSummary }) {
+type DashboardPageProps = {
+  searchParams: Promise<{ invitation?: string }>;
+};
+
+function GroupCard({
+  group,
+  role,
+}: {
+  group: OwnedGroupSummary | MemberGroupSummary;
+  role: "owner" | "member" | "viewer";
+}) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>{group.name}</CardTitle>
         <CardDescription>
-          Updated {accountDateFormatter.format(new Date(group.updatedAt))}
+          {role.charAt(0).toUpperCase() + role.slice(1)} · Updated {accountDateFormatter.format(new Date(group.updatedAt))}
         </CardDescription>
         <CardAction>
           <Link
@@ -74,9 +88,33 @@ function OwnedGroupCard({ group }: { group: OwnedGroupSummary }) {
   );
 }
 
-export default async function DashboardPage() {
+function InvitationCard({ invitation }: { invitation: PendingInvitationSummary }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{invitation.groupName}</CardTitle>
+        <CardDescription className="capitalize">Invited as {invitation.role}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2 sm:flex-row">
+        <form action={declineInvitation} className="flex-1">
+          <input type="hidden" name="invitationId" value={invitation.id} />
+          <Button type="submit" variant="outline" className="w-full">Decline</Button>
+        </form>
+        <form action={acceptInvitation} className="flex-1">
+          <input type="hidden" name="invitationId" value={invitation.id} />
+          <Button type="submit" className="w-full">Accept</Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = await searchParams;
   const user = await requireUser("/dashboard");
-  const { profile, ownedGroups } = await getDashboardData(user.id);
+  const { profile, ownedGroups, memberGroups, pendingInvitations } =
+    await getDashboardData(user.id, user.email);
+  const hasGroups = ownedGroups.length + memberGroups.length > 0;
   const displayName = getAccountDisplayName(profile.displayName, user.email);
   const accountCreatedAt = accountDateFormatter.format(new Date(user.created_at));
 
@@ -92,6 +130,15 @@ export default async function DashboardPage() {
       </header>
 
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pt-8 pb-20 sm:px-8 sm:pt-12">
+        {params.invitation === "declined" ? (
+          <Alert className="border-primary/25 bg-primary-soft/40">
+            <AlertDescription className="text-foreground">Invitation declined.</AlertDescription>
+          </Alert>
+        ) : params.invitation ? (
+          <Alert variant="destructive">
+            <AlertDescription>That invitation is invalid, expired, or no longer available.</AlertDescription>
+          </Alert>
+        ) : null}
         <section aria-labelledby="dashboard-title">
           <p className="text-sm font-semibold text-primary">Your dashboard</p>
           <h1
@@ -113,14 +160,17 @@ export default async function DashboardPage() {
                 Your groups
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Only groups explicitly connected to your account appear here.
+                Groups you own or joined through an invitation.
               </p>
             </div>
 
-            {ownedGroups.length > 0 ? (
+            {hasGroups ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 {ownedGroups.map((group) => (
-                  <OwnedGroupCard key={group.id} group={group} />
+                  <GroupCard key={group.id} group={group} role="owner" />
+                ))}
+                {memberGroups.map((group) => (
+                  <GroupCard key={group.id} group={group} role={group.role} />
                 ))}
               </div>
             ) : (
@@ -148,6 +198,25 @@ export default async function DashboardPage() {
                 </EmptyContent>
               </Empty>
             )}
+
+            {pendingInvitations.length > 0 ? (
+              <section aria-labelledby="invitations-title" className="mt-4 flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                    <MailOpen aria-hidden="true" className="size-5" />
+                  </span>
+                  <div>
+                    <h2 id="invitations-title" className="text-xl font-semibold tracking-tight">Pending invitations</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">Choose which groups to join.</p>
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {pendingInvitations.map((invitation) => (
+                    <InvitationCard key={invitation.id} invitation={invitation} />
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </section>
 
           <aside aria-labelledby="account-title">

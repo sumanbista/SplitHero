@@ -60,8 +60,11 @@ const expectedPaths = [
   "/expenses",
   "/expense_participants",
   "/settlement_payments",
+  "/group_memberships",
+  "/group_invitations",
   "/rpc/create_expense_with_participants",
   "/rpc/record_recommended_settlement_payment",
+  "/rpc/accept_group_invitation",
 ];
 
 for (const expectedPath of expectedPaths) {

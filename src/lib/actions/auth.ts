@@ -65,9 +65,12 @@ export async function signup(
   }
 
   const supabase = await createClient();
+  const nextPath = getSafeNextPath(formData.get("next")?.toString());
   const { data, error } = await supabase.auth.signUp({
     ...validated.data,
-    options: { emailRedirectTo: getAuthCallbackUrl() },
+    options: {
+      emailRedirectTo: `${getAuthCallbackUrl()}?next=${encodeURIComponent(nextPath)}`,
+    },
   });
 
   if (error) {
@@ -75,7 +78,7 @@ export async function signup(
   }
 
   if (data.session) {
-    redirect("/?auth=account-created");
+    redirect(nextPath);
   }
 
   return {
