@@ -4,6 +4,7 @@ import { HandCoins, History, ReceiptText, Scale, Users } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { AppLogo } from "@/components/layout/app-logo";
+import { SessionNavigation } from "@/components/auth/session-navigation";
 import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
 import {
   ExpenseList,
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/card";
 import { calculateMemberBalances } from "@/lib/calculations/balances";
 import { simplifySettlements } from "@/lib/calculations/settlements";
+import { getCurrentUser } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type GroupPageProps = {
@@ -84,6 +86,7 @@ export const metadata: Metadata = {
 
 export default async function GroupPage({ params }: GroupPageProps) {
   const { shareToken } = await params;
+  const userPromise = getCurrentUser();
   const supabase = createAdminClient();
   const { data: group, error } = await supabase
     .from("groups")
@@ -99,7 +102,7 @@ export default async function GroupPage({ params }: GroupPageProps) {
     notFound();
   }
 
-  const [membersResult, expensesResult, settlementPaymentsResult] =
+  const [membersResult, expensesResult, settlementPaymentsResult, user] =
     await Promise.all([
     supabase
       .from("members")
@@ -123,6 +126,7 @@ export default async function GroupPage({ params }: GroupPageProps) {
       .eq("group_id", group.id)
       .order("payment_date", { ascending: false })
       .order("created_at", { ascending: false }),
+    userPromise,
   ]);
 
   const { data: members, error: membersError } = membersResult;
@@ -214,8 +218,11 @@ export default async function GroupPage({ params }: GroupPageProps) {
 
   return (
     <div className="min-h-dvh">
-      <header className="mx-auto flex w-full max-w-5xl items-center px-6 py-6 sm:px-8">
+      <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-6 sm:px-8">
         <AppLogo showMark />
+        <nav aria-label="Account navigation" className="flex items-center gap-1 sm:gap-3">
+          <SessionNavigation email={user?.email} />
+        </nav>
       </header>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pt-8 pb-20 sm:px-8 sm:pt-12">
         <section className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">

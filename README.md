@@ -15,6 +15,7 @@ The MVP does not require accounts. Anyone with a group link can view and update 
 - Record settlement payments and update balances immediately
 - View expense and settlement-payment history
 - Responsive dashboard with loading, empty, error, and invalid-link states
+- Optional email/password accounts with persistent Supabase Auth sessions
 
 ## Tech stack
 
@@ -54,9 +55,14 @@ cp .env.example .env.local
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-safe Supabase publishable key |
+| `NEXT_PUBLIC_SITE_URL` | Application origin used for authentication email callbacks |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only key used by Server Components and Server Actions |
 
 Never prefix `SUPABASE_SERVICE_ROLE_KEY` with `NEXT_PUBLIC_` or commit `.env.local`.
+
+In Supabase Authentication URL settings, set the Site URL to the deployed
+application origin and allow `<application-origin>/auth/callback` as a redirect
+URL. Keep localhost in the allow list for local account confirmation.
 
 ### 3. Apply the database migrations
 
@@ -80,7 +86,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Limitations
 
-- There is no authentication, ownership, or role-based access control in this MVP.
+- Accounts are optional; group ownership and role-based access control are not implemented yet.
 - Anyone with a group link can view and modify the group.
 - Expenses support equal splits only.
 - Each group uses a single US-dollar currency format.

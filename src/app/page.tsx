@@ -1,24 +1,35 @@
 import { AppLogo } from "@/components/layout/app-logo";
+import { SessionNavigation } from "@/components/auth/session-navigation";
 import { CreateGroupForm } from "@/components/groups/create-group-form";
 import { GroupPreview } from "@/components/landing/group-preview";
 import { HeroNetwork } from "@/components/landing/hero-network";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { getCurrentUser } from "@/lib/auth/session";
 
-export default function Home() {
+type HomeProps = {
+  searchParams: Promise<{ auth?: string }>;
+};
+
+export default async function Home({ searchParams }: HomeProps) {
+  const [user, params] = await Promise.all([getCurrentUser(), searchParams]);
+
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex w-full max-w-[86rem] items-center justify-between px-6 py-6 sm:px-8 lg:px-20">
         <AppLogo />
-        <nav aria-label="Main navigation" className="flex items-center gap-3 sm:gap-6">
+        <nav aria-label="Main navigation" className="flex items-center gap-1 sm:gap-3">
           <a
             href="#how-it-works"
-            className="hidden rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus sm:inline-flex"
+            className="hidden rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus lg:inline-flex"
           >
             How it works
           </a>
+          <SessionNavigation email={user?.email} />
           <Button
             size="lg"
+            className="hidden sm:inline-flex"
             nativeButton={false}
             render={<a href="#create-group" />}
           >
@@ -28,6 +39,15 @@ export default function Home() {
       </header>
 
       <main>
+        {params.auth === "account-created" ? (
+          <div className="mx-auto w-full max-w-[86rem] px-6 pt-4 sm:px-8 lg:px-20">
+            <Alert className="border-primary/25 bg-primary-soft/40">
+              <AlertDescription className="text-foreground">
+                Your account is ready and you are logged in.
+              </AlertDescription>
+            </Alert>
+          </div>
+        ) : null}
         <section className="mx-auto grid w-full max-w-[86rem] items-center gap-12 px-6 pt-12 pb-20 sm:px-8 sm:pt-16 lg:grid-cols-[1.08fr_0.92fr] lg:gap-20 lg:px-20 lg:pt-20 lg:pb-40">
           <div>
             <h1 className="max-w-3xl text-5xl leading-[1.04] font-bold tracking-[-0.045em] sm:text-6xl lg:text-[4rem]">
