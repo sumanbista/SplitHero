@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentUser, requireUser } from "@/lib/auth/session";
+import { getGroupAccess } from "@/lib/groups/access";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   createInvitationSchema,
@@ -55,28 +56,25 @@ export async function createInvitation(
     return { fieldErrors: { email: ["You already belong to this group as its owner."] } };
   }
 
-  const supabase = createAdminClient();
-  const { data: group, error: groupError } = await supabase
-    .from("groups")
-    .select("id")
-    .eq("share_token", shareToken)
-    .eq("created_by_user_id", user.id)
-    .maybeSingle();
-
-  if (groupError) {
+  let access;
+  try {
+    access = await getGroupAccess(shareToken);
+  } catch {
     return { formError: "We couldn’t create the invitation. Please try again." };
   }
 
-  if (!group) {
+  if (!access?.permissions.canInvite) {
     return { formError: "Only the group owner can send invitations." };
   }
+
+  const supabase = createAdminClient();
 
   if (validation.data.memberId) {
     const { data: member, error: memberError } = await supabase
       .from("members")
       .select("id, user_id")
       .eq("id", validation.data.memberId)
-      .eq("group_id", group.id)
+      .eq("group_id", access.group.id)
       .maybeSingle();
 
     if (memberError) {
@@ -92,7 +90,7 @@ export async function createInvitation(
   await supabase
     .from("group_invitations")
     .update({ status: "expired", responded_at: now.toISOString() })
-    .eq("group_id", group.id)
+    .eq("group_id", access.group.id)
     .eq("email", validation.data.email)
     .eq("status", "pending")
     .lte("expires_at", now.toISOString());
@@ -101,7 +99,7 @@ export async function createInvitation(
   const { error: invitationError } = await supabase
     .from("group_invitations")
     .insert({
-      group_id: group.id,
+      group_id: access.group.id,
       email: validation.data.email,
       token_hash: hashInvitationToken(token),
       role: validation.data.role,

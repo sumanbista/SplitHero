@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { calculateMemberBalances } from "@/lib/calculations/balances";
 import { simplifySettlements } from "@/lib/calculations/settlements";
+import { getGroupAccess } from "@/lib/groups/access";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { memberGroupTokenSchema } from "@/lib/validations/member";
 import { recordSettlementSchema } from "@/lib/validations/settlement";
@@ -38,26 +39,23 @@ export async function recordSettlementPayment(
   }
 
   try {
-    const supabase = createAdminClient();
-    const { data: group, error: groupError } = await supabase
-      .from("groups")
-      .select("id")
-      .eq("share_token", shareToken)
-      .maybeSingle();
+    const access = await getGroupAccess(shareToken);
 
-    if (groupError) {
-      return { formError: failureMessage };
-    }
-
-    if (!group) {
+    if (!access) {
       return { formError: "This group is no longer available." };
     }
+
+    if (!access.permissions.canContribute) {
+      return { formError: "You don’t have permission to record payments in this group." };
+    }
+
+    const supabase = createAdminClient();
 
     const [membersResult, expensesResult, paymentsResult] = await Promise.all([
       supabase
         .from("members")
         .select("id")
-        .eq("group_id", group.id)
+        .eq("group_id", access.group.id)
         .order("created_at", { ascending: true })
         .order("id", { ascending: true }),
       supabase
@@ -65,11 +63,11 @@ export async function recordSettlementPayment(
         .select(
           "amount_cents, paid_by_member_id, participants:expense_participants(member_id, share_cents)",
         )
-        .eq("group_id", group.id),
+        .eq("group_id", access.group.id),
       supabase
         .from("settlement_payments")
         .select("from_member_id, to_member_id, amount_cents")
-        .eq("group_id", group.id),
+        .eq("group_id", access.group.id),
     ]);
 
     if (membersResult.error || expensesResult.error || paymentsResult.error) {
@@ -107,7 +105,7 @@ export async function recordSettlementPayment(
     const { data: paymentId, error: paymentError } = await supabase.rpc(
       "record_recommended_settlement_payment",
       {
-        p_group_id: group.id,
+        p_group_id: access.group.id,
         p_from_member_id: input.fromMemberId,
         p_to_member_id: input.toMemberId,
         p_amount_cents: input.amountCents,

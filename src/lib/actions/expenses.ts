@@ -5,6 +5,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 
 import { calculateEqualShares } from "@/lib/calculations/equal-split";
+import { getGroupAccess } from "@/lib/groups/access";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createExpenseSchema } from "@/lib/validations/expense";
 import { memberGroupTokenSchema } from "@/lib/validations/member";
@@ -91,28 +92,25 @@ export async function addExpense(
   const input = validation.data;
 
   try {
-    const supabase = createAdminClient();
-    const { data: group, error: groupError } = await supabase
-      .from("groups")
-      .select("id")
-      .eq("share_token", shareToken)
-      .maybeSingle();
+    const access = await getGroupAccess(shareToken);
 
-    if (groupError) {
+    if (!access) {
+      return { formError: "This group is no longer available.", values };
+    }
+
+    if (!access.permissions.canContribute) {
       return {
-        formError: "We couldn’t add this expense. Please try again.",
+        formError: "You don’t have permission to add expenses to this group.",
         values,
       };
     }
 
-    if (!group) {
-      return { formError: "This group is no longer available.", values };
-    }
+    const supabase = createAdminClient();
 
     const { data: members, error: membersError } = await supabase
       .from("members")
       .select("id")
-      .eq("group_id", group.id)
+      .eq("group_id", access.group.id)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true });
 
@@ -156,7 +154,7 @@ export async function addExpense(
     const { data: expenseId, error: transactionError } = await supabase.rpc(
       "create_expense_with_participants",
       {
-        p_group_id: group.id,
+        p_group_id: access.group.id,
         p_title: input.title,
         p_amount_cents: input.amount,
         p_paid_by_member_id: input.paidByMemberId,

@@ -38,6 +38,7 @@ type SettlementListProps = {
   shareToken: string;
   settlements: SettlementListItem[];
   hasExpenses: boolean;
+  canRecord?: boolean;
 };
 
 const initialState: RecordSettlementState = {};
@@ -81,6 +82,7 @@ export function SettlementList({
   shareToken,
   settlements,
   hasExpenses,
+  canRecord = true,
 }: SettlementListProps) {
   if (settlements.length === 0) {
     return (
@@ -124,12 +126,14 @@ export function SettlementList({
                 {formatCurrencyFromCents(settlement.amountCents)}
               </p>
             </CardContent>
-            <CardFooter>
-              <SettlementPaymentForm
-                shareToken={shareToken}
-                settlement={settlement}
-              />
-            </CardFooter>
+            {canRecord ? (
+              <CardFooter>
+                <SettlementPaymentForm
+                  shareToken={shareToken}
+                  settlement={settlement}
+                />
+              </CardFooter>
+            ) : null}
           </Card>
         </li>
       ))}
