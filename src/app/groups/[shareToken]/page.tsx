@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { HandCoins, History, ReceiptText, Scale, Users } from "lucide-react";
+import {
+  HandCoins,
+  History,
+  Link2,
+  LockKeyhole,
+  ReceiptText,
+  Scale,
+  Users,
+} from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { AppLogo } from "@/components/layout/app-logo";
@@ -16,6 +24,8 @@ import {
   type BalanceListItem,
 } from "@/components/groups/balance-list";
 import { GroupSummary } from "@/components/groups/group-summary";
+import { GroupAccessDenied } from "@/components/groups/group-access-denied";
+import { GroupAccessSettings } from "@/components/groups/group-access-settings";
 import { ShareGroupButton } from "@/components/groups/share-group-button";
 import { AddMemberDialog } from "@/components/members/add-member-dialog";
 import { MemberList } from "@/components/members/member-list";
@@ -37,7 +47,7 @@ import {
 } from "@/components/ui/card";
 import { calculateMemberBalances } from "@/lib/calculations/balances";
 import { simplifySettlements } from "@/lib/calculations/settlements";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getGroupAccess } from "@/lib/groups/access";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type GroupPageProps = {
@@ -90,25 +100,24 @@ export const metadata: Metadata = {
 export default async function GroupPage({ params, searchParams }: GroupPageProps) {
   const { shareToken } = await params;
   const pageState = await searchParams;
-  const userPromise = getCurrentUser();
-  const supabase = createAdminClient();
-  const { data: group, error } = await supabase
-    .from("groups")
-    .select("id, name, created_by_user_id")
-    .eq("share_token", shareToken)
-    .maybeSingle();
+  const access = await getGroupAccess(shareToken);
 
-  if (error) {
-    throw new Error("Unable to load the group.");
-  }
-
-  if (!group) {
+  if (!access) {
     notFound();
   }
 
-  const user = await userPromise;
-  const isOwner = Boolean(user && group.created_by_user_id === user.id);
-  const invitationsPromise = isOwner
+  if (!access.permissions.canView) {
+    return (
+      <GroupAccessDenied
+        shareToken={shareToken}
+        email={access.user?.email}
+      />
+    );
+  }
+
+  const { group, user, role, permissions } = access;
+  const supabase = createAdminClient();
+  const invitationsPromise = permissions.canInvite
     ? supabase
         .from("group_invitations")
         .select("id, email, role, expires_at, invited_member:members(name)")
@@ -262,7 +271,14 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
         ) : null}
         <section className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-primary">Your group</p>
+            <p className="flex items-center gap-2 text-sm font-semibold text-primary">
+              {group.accessMode === "private" ? (
+                <LockKeyhole className="size-4" aria-hidden="true" />
+              ) : (
+                <Link2 className="size-4" aria-hidden="true" />
+              )}
+              {group.accessMode === "private" ? "Private group" : "Public share-link group"}
+            </p>
             <h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
               {group.name}
             </h1>
@@ -273,10 +289,30 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-            <AddExpenseDialog shareToken={shareToken} members={members} />
-            <AddMemberDialog shareToken={shareToken} />
+            {permissions.canContribute ? (
+              <AddExpenseDialog shareToken={shareToken} members={members} />
+            ) : null}
+            {permissions.canManageMembers ? (
+              <AddMemberDialog shareToken={shareToken} />
+            ) : null}
           </div>
         </section>
+
+        {!permissions.canContribute ? (
+          <Alert className="border-primary/25 bg-primary-soft/40">
+            <AlertDescription className="text-foreground">
+              You have viewer access. You can review members, expenses, balances,
+              and payment history, but you can’t change this group.
+            </AlertDescription>
+          </Alert>
+        ) : role === "member" && group.accessMode === "private" ? (
+          <Alert className="border-primary/25 bg-primary-soft/40">
+            <AlertDescription className="text-foreground">
+              You’re a group member. You can add expenses and record payments;
+              the owner manages people and access settings.
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="flex min-w-0 flex-col gap-10">
@@ -297,6 +333,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
                 shareToken={shareToken}
                 settlements={settlements}
                 hasExpenses={expenses.length > 0}
+                canRecord={permissions.canContribute}
               />
             </DashboardSection>
 
@@ -356,7 +393,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
               </CardContent>
             </Card>
 
-            {isOwner ? (
+            {permissions.canInvite ? (
               <Card>
                 <CardHeader>
                   <CardTitle>Invitations</CardTitle>
@@ -372,10 +409,33 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
               </Card>
             ) : null}
 
+            {permissions.canChangeAccess ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Group access</CardTitle>
+                  <CardDescription>
+                    Choose between guest-friendly sharing and invited access.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <GroupAccessSettings
+                    shareToken={shareToken}
+                    accessMode={group.accessMode}
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
+
             <Card>
               <CardHeader>
-                <CardTitle>Share group</CardTitle>
-                <CardDescription>Keep everyone on the same page.</CardDescription>
+                <CardTitle>
+                  {group.accessMode === "private" ? "Group link" : "Share group"}
+                </CardTitle>
+                <CardDescription>
+                  {group.accessMode === "private"
+                    ? "Only invited members can open this link."
+                    : "Anyone with this link can view and contribute."}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ShareGroupButton />

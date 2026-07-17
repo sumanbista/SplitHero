@@ -7,3 +7,5 @@ export const createGroupSchema = z.object({
     .min(1, "Enter a group name.")
     .max(80, "Group names must be 80 characters or fewer."),
 });
+
+export const groupAccessModeSchema = z.enum(["public", "private"]);

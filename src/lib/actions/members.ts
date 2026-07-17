@@ -5,6 +5,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getGroupAccess } from "@/lib/groups/access";
 import {
   addMemberSchema,
   memberGroupTokenSchema,
@@ -48,31 +49,28 @@ export async function addMember(
   }
 
   try {
-    const supabase = createAdminClient();
-    const { data: group, error: groupError } = await supabase
-      .from("groups")
-      .select("id")
-      .eq("share_token", shareToken)
-      .maybeSingle();
+    const access = await getGroupAccess(shareToken);
 
-    if (groupError) {
-      return {
-        formError: "We couldn’t add this member. Please try again.",
-        value: name,
-      };
-    }
-
-    if (!group) {
+    if (!access) {
       return {
         formError: "This group is no longer available.",
         value: name,
       };
     }
 
+    if (!access.permissions.canManageMembers) {
+      return {
+        formError: "You don’t have permission to add members to this group.",
+        value: name,
+      };
+    }
+
+    const supabase = createAdminClient();
+
     const { data: existingMembers, error: memberLookupError } = await supabase
       .from("members")
       .select("name")
-      .eq("group_id", group.id);
+      .eq("group_id", access.group.id);
 
     if (memberLookupError) {
       return {
@@ -92,7 +90,7 @@ export async function addMember(
 
     const { data: member, error: insertError } = await supabase
       .from("members")
-      .insert({ group_id: group.id, name })
+      .insert({ group_id: access.group.id, name })
       .select("id")
       .single();
 
