@@ -95,7 +95,7 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
       <p className="mt-6 text-center text-sm text-muted-foreground">
         {isLogin ? "New to SplitHero?" : "Already have an account?"}{" "}
         <Link
-          href={isLogin ? "/signup" : "/login"}
+          href={`${isLogin ? "/signup" : "/login"}${nextPath ? `?next=${encodeURIComponent(nextPath)}` : ""}`}
           className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           {isLogin ? "Create an account" : "Log in"}

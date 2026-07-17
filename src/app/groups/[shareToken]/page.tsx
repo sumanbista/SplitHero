@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import { AppLogo } from "@/components/layout/app-logo";
 import { SessionNavigation } from "@/components/auth/session-navigation";
+import { InvitationManager } from "@/components/invitations/invitation-manager";
 import { AddExpenseDialog } from "@/components/expenses/add-expense-dialog";
 import {
   ExpenseList,
@@ -26,6 +27,7 @@ import {
   SettlementList,
   type SettlementListItem,
 } from "@/components/settlements/settlement-list";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -40,6 +42,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 type GroupPageProps = {
   params: Promise<{ shareToken: string }>;
+  searchParams: Promise<{ invitation?: string }>;
 };
 
 type DashboardSectionProps = {
@@ -84,13 +87,14 @@ export const metadata: Metadata = {
   description: "A shared SplitHero group.",
 };
 
-export default async function GroupPage({ params }: GroupPageProps) {
+export default async function GroupPage({ params, searchParams }: GroupPageProps) {
   const { shareToken } = await params;
+  const pageState = await searchParams;
   const userPromise = getCurrentUser();
   const supabase = createAdminClient();
   const { data: group, error } = await supabase
     .from("groups")
-    .select("id, name")
+    .select("id, name, created_by_user_id")
     .eq("share_token", shareToken)
     .maybeSingle();
 
@@ -102,11 +106,23 @@ export default async function GroupPage({ params }: GroupPageProps) {
     notFound();
   }
 
-  const [membersResult, expensesResult, settlementPaymentsResult, user] =
+  const user = await userPromise;
+  const isOwner = Boolean(user && group.created_by_user_id === user.id);
+  const invitationsPromise = isOwner
+    ? supabase
+        .from("group_invitations")
+        .select("id, email, role, expires_at, invited_member:members(name)")
+        .eq("group_id", group.id)
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+    : Promise.resolve({ data: [], error: null });
+
+  const [membersResult, expensesResult, settlementPaymentsResult, invitationsResult] =
     await Promise.all([
     supabase
       .from("members")
-      .select("id, name")
+      .select("id, name, user_id")
       .eq("group_id", group.id)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true }),
@@ -126,17 +142,29 @@ export default async function GroupPage({ params }: GroupPageProps) {
       .eq("group_id", group.id)
       .order("payment_date", { ascending: false })
       .order("created_at", { ascending: false }),
-    userPromise,
+    invitationsPromise,
   ]);
 
   const { data: members, error: membersError } = membersResult;
   const { data: expenseRows, error: expensesError } = expensesResult;
   const { data: settlementPaymentRows, error: settlementPaymentsError } =
     settlementPaymentsResult;
+  const { data: invitationRows, error: invitationsError } = invitationsResult;
 
-  if (membersError || expensesError || settlementPaymentsError) {
+  if (membersError || expensesError || settlementPaymentsError || invitationsError) {
     throw new Error("Unable to load group details.");
   }
+
+  const pendingInvitations = invitationRows.map((invitation) => ({
+    id: invitation.id,
+    email: invitation.email,
+    role: invitation.role,
+    expiresAt: invitation.expires_at,
+    memberName: getRelatedRecord(invitation.invited_member)?.name ?? null,
+  }));
+  const availableMembers = members
+    .filter((member) => !member.user_id)
+    .map((member) => ({ id: member.id, name: member.name }));
 
   const memberOrder = new Map(
     members.map((member, index) => [member.id, index]),
@@ -225,6 +253,13 @@ export default async function GroupPage({ params }: GroupPageProps) {
         </nav>
       </header>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pt-8 pb-20 sm:px-8 sm:pt-12">
+        {pageState.invitation === "accepted" ? (
+          <Alert className="border-primary/25 bg-primary-soft/40">
+            <AlertDescription className="text-foreground">
+              Invitation accepted. This group is now connected to your dashboard.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         <section className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-primary">Your group</p>
@@ -320,6 +355,22 @@ export default async function GroupPage({ params }: GroupPageProps) {
                 <MemberList members={members} />
               </CardContent>
             </Card>
+
+            {isOwner ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Invitations</CardTitle>
+                  <CardDescription>Connect people to this group.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <InvitationManager
+                    shareToken={shareToken}
+                    members={availableMembers}
+                    pendingInvitations={pendingInvitations}
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
 
             <Card>
               <CardHeader>
