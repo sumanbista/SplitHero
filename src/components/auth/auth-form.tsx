@@ -39,12 +39,12 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
       <FieldGroup>
         {state.error ? (
           <Alert variant="destructive">
-            <AlertDescription>{state.error}</AlertDescription>
+            <AlertDescription aria-live="polite">{state.error}</AlertDescription>
           </Alert>
         ) : null}
         {state.success ? (
           <Alert className="border-primary/25 bg-primary-soft/40">
-            <AlertDescription className="text-foreground">
+            <AlertDescription className="text-foreground" aria-live="polite">
               {state.success}
             </AlertDescription>
           </Alert>
@@ -75,7 +75,11 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
             minLength={8}
             aria-invalid={Boolean(state.fieldErrors?.password?.length)}
           />
-          {isLogin ? null : (
+          {isLogin ? (
+            <FieldDescription>
+              <Link href="/forgot-password">Forgot your password?</Link>
+            </FieldDescription>
+          ) : (
             <FieldDescription>Use at least 8 characters.</FieldDescription>
           )}
           <FieldError

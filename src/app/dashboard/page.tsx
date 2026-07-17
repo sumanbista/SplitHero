@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, CalendarDays, FolderHeart, Mail, MailOpen } from "lucide-react";
 
 import { AppLogo } from "@/components/layout/app-logo";
+import { SessionNavigation } from "@/components/auth/session-navigation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -22,7 +23,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { logout } from "@/lib/actions/auth";
 import { acceptInvitation, declineInvitation } from "@/lib/actions/invitations";
 import { requireUser } from "@/lib/auth/session";
 import {
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
 };
 
 type DashboardPageProps = {
-  searchParams: Promise<{ invitation?: string }>;
+  searchParams: Promise<{ auth?: string; invitation?: string }>;
 };
 
 function GroupCard({
@@ -122,14 +122,19 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     <div className="min-h-dvh">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-6 sm:px-8">
         <AppLogo showMark />
-        <form action={logout}>
-          <Button type="submit" variant="outline" size="lg">
-            Log out
-          </Button>
-        </form>
+        <nav aria-label="Account navigation">
+          <SessionNavigation user={user} />
+        </nav>
       </header>
 
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pt-8 pb-20 sm:px-8 sm:pt-12">
+        {params.auth === "password-updated" ? (
+          <Alert className="border-primary/25 bg-primary-soft/40">
+            <AlertDescription className="text-foreground">
+              Password updated. You’re signed in and ready to continue.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {params.invitation === "declined" ? (
           <Alert className="border-primary/25 bg-primary-soft/40">
             <AlertDescription className="text-foreground">Invitation declined.</AlertDescription>
@@ -258,6 +263,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     </div>
                   </div>
                 </dl>
+                <Link
+                  href="/account"
+                  className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+                >
+                  Manage account
+                </Link>
               </CardContent>
             </Card>
           </aside>
