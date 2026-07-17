@@ -9,6 +9,12 @@ import {
   getSafeNextPath,
 } from "@/lib/auth/redirect";
 import { createClient } from "@/lib/supabase/server";
+import { writeSecurityAuditEvent } from "@/lib/security/audit";
+import {
+  enforceRateLimit,
+  getRateLimitMessage,
+  isRateLimitError,
+} from "@/lib/security/rate-limit";
 import {
   authCredentialsSchema,
   emailSchema,
@@ -68,12 +74,33 @@ export async function login(
     return { fieldErrors: validated.error.flatten().fieldErrors };
   }
 
+  try {
+    await enforceRateLimit({ action: "auth.login" });
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      await writeSecurityAuditEvent({
+        eventType: "auth.login",
+        outcome: "rate_limited",
+      });
+      return { error: getRateLimitMessage(error) };
+    }
+
+    return { error: "We could not verify this login attempt. Please try again." };
+  }
+
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(validated.data);
+  const { data, error } = await supabase.auth.signInWithPassword(validated.data);
 
   if (error) {
+    await writeSecurityAuditEvent({ eventType: "auth.login", outcome: "denied" });
     return { error: getFriendlyAuthError("login", error.code) };
   }
+
+  await writeSecurityAuditEvent({
+    eventType: "auth.login",
+    outcome: "allowed",
+    actorUserId: data.user.id,
+  });
 
   redirect(getSafeNextPath(formData.get("next")?.toString()));
 }
@@ -86,6 +113,16 @@ export async function signup(
 
   if (!validated.success) {
     return { fieldErrors: validated.error.flatten().fieldErrors };
+  }
+
+  try {
+    await enforceRateLimit({ action: "auth.signup" });
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      return { error: getRateLimitMessage(error) };
+    }
+
+    return { error: "We could not verify this signup attempt. Please try again." };
   }
 
   const supabase = await createClient();
@@ -119,6 +156,16 @@ export async function requestPasswordReset(
 
   if (!validated.success) {
     return { fieldErrors: { email: validated.error.issues.map(({ message }) => message) } };
+  }
+
+  try {
+    await enforceRateLimit({ action: "auth.password_reset" });
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      return { error: getRateLimitMessage(error) };
+    }
+
+    return { error: "We could not verify this request. Please try again." };
   }
 
   const supabase = await createClient();
@@ -158,6 +205,19 @@ export async function updatePassword(
     return {
       error: "This reset link has expired or already been used. Request a new one to continue.",
     };
+  }
+
+  try {
+    await enforceRateLimit({
+      action: "auth.password_update",
+      userId: user.id,
+    });
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      return { error: getRateLimitMessage(error) };
+    }
+
+    return { error: "We could not verify this password update. Please try again." };
   }
 
   const { error } = await supabase.auth.updateUser({

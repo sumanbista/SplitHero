@@ -7,6 +7,12 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser, requireUser } from "@/lib/auth/session";
 import { getGroupAccess } from "@/lib/groups/access";
+import { writeSecurityAuditEvent } from "@/lib/security/audit";
+import {
+  enforceRateLimit,
+  getRateLimitMessage,
+  isRateLimitError,
+} from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   createInvitationSchema,
@@ -64,7 +70,37 @@ export async function createInvitation(
   }
 
   if (!access?.permissions.canInvite) {
+    await writeSecurityAuditEvent({
+      eventType: "invitation.create",
+      outcome: "denied",
+      actorUserId: user.id,
+      groupId: access?.group.id,
+    });
     return { formError: "Only the group owner can send invitations." };
+  }
+
+  try {
+    await enforceRateLimit({
+      action: "invitation.create.user",
+      userId: user.id,
+    });
+    await enforceRateLimit({
+      action: "invitation.create.group",
+      userId: user.id,
+      scope: access.group.id,
+    });
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      await writeSecurityAuditEvent({
+        eventType: "invitation.create",
+        outcome: "rate_limited",
+        actorUserId: user.id,
+        groupId: access.group.id,
+      });
+      return { formError: getRateLimitMessage(error) };
+    }
+
+    return { formError: "We couldn’t verify this invitation. Please try again." };
   }
 
   const supabase = createAdminClient();
@@ -124,6 +160,17 @@ export async function createInvitation(
     return { formError: "We couldn’t create the invitation. Please try again." };
   }
 
+  await writeSecurityAuditEvent({
+    eventType: "invitation.create",
+    outcome: "allowed",
+    actorUserId: user.id,
+    groupId: access.group.id,
+    metadata: {
+      linkedMember: Boolean(validation.data.memberId),
+      role: validation.data.role,
+    },
+  });
+
   revalidatePath(`/groups/${shareToken}`);
   revalidatePath("/dashboard");
 
@@ -179,6 +226,26 @@ export async function acceptInvitation(formData: FormData) {
     redirect("/dashboard?invitation=unavailable");
   }
 
+  try {
+    await enforceRateLimit({
+      action: "invitation.accept",
+      userId: context.user.id,
+      scope: context.invitation.group_id,
+    });
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      await writeSecurityAuditEvent({
+        eventType: "invitation.accept",
+        outcome: "rate_limited",
+        actorUserId: context.user.id,
+        groupId: context.invitation.group_id,
+      });
+    }
+    redirect("/dashboard?invitation=unavailable");
+  }
+
+  const isReplay = context.invitation.status === "accepted";
+
   const { data, error } = await context.supabase.rpc("accept_group_invitation", {
     p_invitation_id: context.invitation.id,
     p_user_id: context.user.id,
@@ -188,6 +255,13 @@ export async function acceptInvitation(formData: FormData) {
   if (error || !data?.[0]?.share_token) {
     redirect("/dashboard?invitation=unavailable");
   }
+
+  await writeSecurityAuditEvent({
+    eventType: "invitation.accept",
+    outcome: isReplay ? "replayed" : "allowed",
+    actorUserId: context.user.id,
+    groupId: context.invitation.group_id,
+  });
 
   revalidatePath("/dashboard");
   revalidatePath(`/groups/${data[0].share_token}`);
@@ -213,15 +287,34 @@ export async function declineInvitation(formData: FormData) {
     redirect("/dashboard?invitation=unavailable");
   }
 
-  const { error } = await context.supabase
+  try {
+    await enforceRateLimit({
+      action: "invitation.decline",
+      userId: context.user.id,
+      scope: context.invitation.group_id,
+    });
+  } catch {
+    redirect("/dashboard?invitation=unavailable");
+  }
+
+  const { data, error } = await context.supabase
     .from("group_invitations")
     .update({ status: "declined", responded_at: new Date().toISOString() })
     .eq("id", context.invitation.id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
 
-  if (error) {
+  if (error || !data) {
     redirect("/dashboard?invitation=unavailable");
   }
+
+  await writeSecurityAuditEvent({
+    eventType: "invitation.decline",
+    outcome: "allowed",
+    actorUserId: context.user.id,
+    groupId: context.invitation.group_id,
+  });
 
   revalidatePath("/dashboard");
   redirect("/dashboard?invitation=declined");

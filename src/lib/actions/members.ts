@@ -7,6 +7,11 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getGroupAccess } from "@/lib/groups/access";
 import {
+  enforceRateLimit,
+  getRateLimitMessage,
+  isRateLimitError,
+} from "@/lib/security/rate-limit";
+import {
   addMemberSchema,
   memberGroupTokenSchema,
 } from "@/lib/validations/member";
@@ -65,6 +70,12 @@ export async function addMember(
       };
     }
 
+    await enforceRateLimit({
+      action: "member.create",
+      userId: access.user?.id,
+      scope: access.group.id,
+    });
+
     const supabase = createAdminClient();
 
     const { data: existingMembers, error: memberLookupError } = await supabase
@@ -111,7 +122,14 @@ export async function addMember(
       memberId: member.id,
       memberName: name,
     };
-  } catch {
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      return {
+        formError: getRateLimitMessage(error),
+        value: name,
+      };
+    }
+
     return {
       formError: "We couldn’t add this member. Please try again.",
       value: name,

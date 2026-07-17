@@ -7,6 +7,12 @@ import { redirect } from "next/navigation";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { getGroupAccess } from "@/lib/groups/access";
+import { writeSecurityAuditEvent } from "@/lib/security/audit";
+import {
+  enforceRateLimit,
+  getRateLimitMessage,
+  isRateLimitError,
+} from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateShareToken } from "@/lib/utils/share-token";
 import {
@@ -48,6 +54,7 @@ export async function createGroup(
     // client-submitted form data. A missing session intentionally creates the
     // same unowned public group supported by guest mode.
     const user = await getCurrentUser();
+    await enforceRateLimit({ action: "group.create", userId: user?.id });
     const supabase = createAdminClient();
 
     for (let attempt = 0; attempt < MAX_TOKEN_ATTEMPTS; attempt += 1) {
@@ -70,7 +77,14 @@ export async function createGroup(
         };
       }
     }
-  } catch {
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      return {
+        formError: getRateLimitMessage(error),
+        value: validation.data.name,
+      };
+    }
+
     return {
       formError: "We couldn’t create your group. Please try again.",
       value: validation.data.name,
@@ -107,8 +121,20 @@ export async function updateGroupAccess(
     }
 
     if (!access.permissions.canChangeAccess) {
+      await writeSecurityAuditEvent({
+        eventType: "group.access.update",
+        outcome: "denied",
+        actorUserId: access.user?.id,
+        groupId: access.group.id,
+      });
       return { formError: "Only the group owner can change access settings." };
     }
+
+    await enforceRateLimit({
+      action: "group.access.update",
+      userId: access.user?.id,
+      scope: access.group.id,
+    });
 
     const supabase = createAdminClient();
     const { error } = await supabase
@@ -120,6 +146,14 @@ export async function updateGroupAccess(
       return { formError: "We couldn’t update group access. Please try again." };
     }
 
+    await writeSecurityAuditEvent({
+      eventType: "group.access.update",
+      outcome: "allowed",
+      actorUserId: access.user?.id,
+      groupId: access.group.id,
+      metadata: { accessMode: validation.data },
+    });
+
     revalidatePath(`/groups/${shareToken}`);
     revalidatePath("/dashboard");
 
@@ -129,7 +163,11 @@ export async function updateGroupAccess(
           ? "This group is now private. Only invited members can open it."
           : "This group now works for anyone with its share link.",
     };
-  } catch {
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      return { formError: getRateLimitMessage(error) };
+    }
+
     return { formError: "We couldn’t update group access. Please try again." };
   }
 }

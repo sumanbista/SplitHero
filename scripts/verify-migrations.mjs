@@ -56,6 +56,8 @@ const tables = [
   "profiles",
   "group_memberships",
   "group_invitations",
+  "security_rate_limits",
+  "security_audit_log",
 ];
 
 for (const table of tables) {
@@ -74,6 +76,7 @@ for (const table of tables) {
 const serviceRoleFunctions = [
   "create_expense_with_participants",
   "record_recommended_settlement_payment",
+  "consume_security_rate_limit",
 ];
 
 for (const functionName of serviceRoleFunctions) {
@@ -88,7 +91,7 @@ for (const functionName of serviceRoleFunctions) {
   assert.match(
     migrationSql,
     new RegExp(
-      `grant execute on function public\\.${functionName}\\s*\\([\\s\\S]*?\\) to service_role`,
+      `grant execute on function public\\.${functionName}\\s*\\([\\s\\S]*?\\)\\s+to service_role`,
       "i",
     ),
     `public.${functionName} must be executable by service_role.`,
@@ -96,12 +99,28 @@ for (const functionName of serviceRoleFunctions) {
   assert.match(
     migrationSql,
     new RegExp(
-      `revoke all on function public\\.${functionName}\\s*\\([\\s\\S]*?\\) from public, anon, authenticated`,
+      `revoke all on function public\\.${functionName}\\s*\\([\\s\\S]*?\\)\\s+from public, anon, authenticated`,
       "i",
     ),
     `public.${functionName} must not be executable by browser roles.`,
   );
 }
+
+assert.match(
+  migrationSql,
+  /revoke insert, update, delete on public\.groups from authenticated/i,
+  "Authenticated browser clients must not bypass Server Action mutations.",
+);
+assert.match(
+  migrationSql,
+  /revoke all on table public\.security_rate_limits from public, anon, authenticated/i,
+  "Rate-limit state must remain server-only.",
+);
+assert.match(
+  migrationSql,
+  /revoke all on table public\.security_audit_log from public, anon, authenticated/i,
+  "Security audit events must remain server-only.",
+);
 
 const functionDefinitions = migrationSql.matchAll(
   /create or replace function public\.[\s\S]*?\$\$;/gi,

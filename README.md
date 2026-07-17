@@ -2,7 +2,8 @@
 
 SplitHero is a lightweight expense-splitting application for roommates, friends, families, classmates, and travel groups. Create a group, add people and shared expenses, see who owes whom, and record payments as the group settles up.
 
-The MVP does not require accounts. Anyone with a group link can view and update that group, so links should be treated as unlisted rather than private.
+Accounts remain optional. Public groups use permanent unlisted share-link access,
+while private groups require an authenticated owner, member, or viewer role.
 
 ## Features
 
@@ -17,6 +18,9 @@ The MVP does not require accounts. Anyone with a group link can view and update 
 - Responsive dashboard with loading, empty, error, and invalid-link states
 - Optional email/password accounts with persistent Supabase Auth sessions
 - Account-owned groups created while signed in and listed on the dashboard
+- Secure invitations with expiring, single-lifecycle tokens and replay-safe acceptance
+- Private groups with server-enforced owner, member, and viewer permissions
+- Database-backed rate limits and minimal security audit events for sensitive actions
 
 ## Tech stack
 
@@ -60,6 +64,8 @@ cp .env.example .env.local
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only key used by Server Components and Server Actions |
 
 Never prefix `SUPABASE_SERVICE_ROLE_KEY` with `NEXT_PUBLIC_` or commit `.env.local`.
+`NEXT_PUBLIC_SITE_URL` must be the exact HTTPS production origin in production;
+public-prefixed variables are embedded in browser bundles at build time.
 
 In Supabase Authentication URL settings, set the Site URL to the deployed
 application origin and allow `<application-origin>/auth/callback` as a redirect
@@ -89,10 +95,34 @@ Open [http://localhost:3000](http://localhost:3000).
 
 - Accounts are optional; groups created while signed in are connected to their
   owner, while guest-created groups remain unowned.
-- Private groups, invitations, and role-based access control are not implemented yet.
-- Anyone with a group link can view and modify the group.
+- Public groups intentionally allow anyone with the unpredictable share link to
+  view and modify the group. Treat those URLs as secrets; use private mode when
+  account membership must be required.
+- Anonymous group claiming (Spec 015) is intentionally not implemented. Guest
+  groups remain unowned and cannot be claimed through the normal share URL.
 - Expenses support equal splits only.
 - Each group uses a single US-dollar currency format.
 - Existing members, expenses, and payments cannot be edited or deleted through the UI.
 - Receipt uploads, notifications, recurring expenses, and payment-provider integrations are not included.
-- Rate limiting is not yet implemented for public Server Actions.
+
+## Production deployment
+
+1. Use separate Supabase projects for production and non-production data.
+2. Apply every migration in `supabase/migrations` in filename order, including
+   `08_add_security_hardening.sql`, before deploying the matching application.
+3. In Supabase Auth, set the Site URL to the deployed HTTPS origin and allow
+   only the required `/auth/callback` origins (plus intentional local development).
+4. Configure all four variables from the environment table above in the hosting
+   provider. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only and sensitive.
+5. Run `npm run check:production`. This runs lint, type-checking, all tests, the
+   production build, strict environment validation, and a live Supabase schema
+   check.
+6. Verify both a public share-link group in a signed-out browser and a private
+   group as owner, member, viewer, and unrelated user. Exercise invitation
+   acceptance once and confirm a replay creates no duplicate membership.
+
+The service-role key is confined to `server-only` modules. Browser roles have
+RLS-filtered reads and self-profile updates but no direct application-table
+mutation grants; all product mutations pass through validated, authorized,
+rate-limited Server Actions. Audit events intentionally exclude invitation
+tokens, email addresses, raw IP addresses, and secrets.
