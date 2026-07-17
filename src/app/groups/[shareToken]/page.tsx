@@ -110,7 +110,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
     return (
       <GroupAccessDenied
         shareToken={shareToken}
-        email={access.user?.email}
+        user={access.user}
       />
     );
   }
@@ -258,7 +258,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-6 sm:px-8">
         <AppLogo showMark />
         <nav aria-label="Account navigation" className="flex items-center gap-1 sm:gap-3">
-          <SessionNavigation email={user?.email} />
+          <SessionNavigation user={user} />
         </nav>
       </header>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pt-8 pb-20 sm:px-8 sm:pt-12">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LockKeyhole } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 
 import { SessionNavigation } from "@/components/auth/session-navigation";
 import { AppLogo } from "@/components/layout/app-logo";
@@ -8,12 +9,12 @@ import { cn } from "@/lib/utils";
 
 export function GroupAccessDenied({
   shareToken,
-  email,
+  user,
 }: {
   shareToken: string;
-  email?: string;
+  user: User | null;
 }) {
-  const isSignedIn = Boolean(email);
+  const isSignedIn = Boolean(user);
   const nextPath = `/groups/${shareToken}`;
 
   return (
@@ -21,7 +22,7 @@ export function GroupAccessDenied({
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-6 sm:px-8">
         <AppLogo showMark />
         <nav aria-label="Account navigation" className="flex items-center gap-1 sm:gap-3">
-          <SessionNavigation email={email} />
+          <SessionNavigation user={user} />
         </nav>
       </header>
       <main className="mx-auto flex w-full max-w-5xl flex-col items-start px-6 pt-12 pb-20 sm:px-8 sm:pt-20">

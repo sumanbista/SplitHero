@@ -26,7 +26,7 @@ export default async function Home({ searchParams }: HomeProps) {
           >
             How it works
           </a>
-          <SessionNavigation email={user?.email} />
+          <SessionNavigation user={user} />
           <Button
             size="lg"
             className="hidden sm:inline-flex"
@@ -39,11 +39,13 @@ export default async function Home({ searchParams }: HomeProps) {
       </header>
 
       <main>
-        {params.auth === "account-created" ? (
+        {params.auth === "account-created" || params.auth === "email-verified" ? (
           <div className="mx-auto w-full max-w-[86rem] px-6 pt-4 sm:px-8 lg:px-20">
             <Alert className="border-primary/25 bg-primary-soft/40">
               <AlertDescription className="text-foreground">
-                Your account is ready and you are logged in.
+                {params.auth === "email-verified"
+                  ? "Email verified. Your account is ready to use."
+                  : "Your account is ready and you are logged in."}
               </AlertDescription>
             </Alert>
           </div>

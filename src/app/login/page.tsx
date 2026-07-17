@@ -31,7 +31,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       {params.error ? (
         <Alert variant="destructive" className="mt-5">
           <AlertDescription>
-            That sign-in link could not be completed. Please try again.
+            {params.error === "verification"
+              ? "That verification link has expired or already been used. Log in if your email is already verified, or create a new account to request another link."
+              : "That sign-in link could not be completed. Please try again."}
           </AlertDescription>
         </Alert>
       ) : null}

@@ -24,3 +24,15 @@ export function getSafeNextPath(
     return fallback;
   }
 }
+
+export function addAuthStatusToPath(
+  value: string | null | undefined,
+  status: string,
+) {
+  const safePath = getSafeNextPath(value);
+  const url = new URL(safePath, "https://splithero.local");
+
+  url.searchParams.set("auth", status);
+
+  return `${url.pathname}${url.search}${url.hash}`;
+}
