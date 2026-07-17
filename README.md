@@ -16,6 +16,7 @@ The MVP does not require accounts. Anyone with a group link can view and update 
 - View expense and settlement-payment history
 - Responsive dashboard with loading, empty, error, and invalid-link states
 - Optional email/password accounts with persistent Supabase Auth sessions
+- Account-owned groups created while signed in and listed on the dashboard
 
 ## Tech stack
 
@@ -86,7 +87,9 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Limitations
 
-- Accounts are optional; group ownership and role-based access control are not implemented yet.
+- Accounts are optional; groups created while signed in are connected to their
+  owner, while guest-created groups remain unowned.
+- Private groups, invitations, and role-based access control are not implemented yet.
 - Anyone with a group link can view and modify the group.
 - Expenses support equal splits only.
 - Each group uses a single US-dollar currency format.
