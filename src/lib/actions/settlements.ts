@@ -7,6 +7,11 @@ import { revalidatePath } from "next/cache";
 import { calculateMemberBalances } from "@/lib/calculations/balances";
 import { simplifySettlements } from "@/lib/calculations/settlements";
 import { getGroupAccess } from "@/lib/groups/access";
+import {
+  enforceRateLimit,
+  getRateLimitMessage,
+  isRateLimitError,
+} from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { memberGroupTokenSchema } from "@/lib/validations/member";
 import { recordSettlementSchema } from "@/lib/validations/settlement";
@@ -48,6 +53,12 @@ export async function recordSettlementPayment(
     if (!access.permissions.canContribute) {
       return { formError: "You don’t have permission to record payments in this group." };
     }
+
+    await enforceRateLimit({
+      action: "settlement.create",
+      userId: access.user?.id,
+      scope: access.group.id,
+    });
 
     const supabase = createAdminClient();
 
@@ -119,7 +130,11 @@ export async function recordSettlementPayment(
     revalidatePath(`/groups/${shareToken}`);
 
     return { paymentId };
-  } catch {
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      return { formError: getRateLimitMessage(error) };
+    }
+
     return { formError: failureMessage };
   }
 }

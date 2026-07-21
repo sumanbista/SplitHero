@@ -6,6 +6,11 @@ import { revalidatePath } from "next/cache";
 
 import { calculateEqualShares } from "@/lib/calculations/equal-split";
 import { getGroupAccess } from "@/lib/groups/access";
+import {
+  enforceRateLimit,
+  getRateLimitMessage,
+  isRateLimitError,
+} from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createExpenseSchema } from "@/lib/validations/expense";
 import { memberGroupTokenSchema } from "@/lib/validations/member";
@@ -105,6 +110,12 @@ export async function addExpense(
       };
     }
 
+    await enforceRateLimit({
+      action: "expense.create",
+      userId: access.user?.id,
+      scope: access.group.id,
+    });
+
     const supabase = createAdminClient();
 
     const { data: members, error: membersError } = await supabase
@@ -175,7 +186,11 @@ export async function addExpense(
     revalidatePath(`/groups/${shareToken}`);
 
     return { expenseId, expenseTitle: input.title };
-  } catch {
+  } catch (error) {
+    if (isRateLimitError(error)) {
+      return { formError: getRateLimitMessage(error), values };
+    }
+
     return {
       formError: "We couldn’t add this expense. Please try again.",
       values,

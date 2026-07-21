@@ -62,9 +62,12 @@ const expectedPaths = [
   "/settlement_payments",
   "/group_memberships",
   "/group_invitations",
+  "/security_rate_limits",
+  "/security_audit_log",
   "/rpc/create_expense_with_participants",
   "/rpc/record_recommended_settlement_payment",
   "/rpc/accept_group_invitation",
+  "/rpc/consume_security_rate_limit",
 ];
 
 for (const expectedPath of expectedPaths) {
