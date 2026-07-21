@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getFriendlyAuthError } from "@/lib/auth/errors";
 import {
   addAuthStatusToPath,
+  getPostLoginPath,
   getSafeNextPath,
 } from "@/lib/auth/redirect";
 import { createClient } from "@/lib/supabase/server";
@@ -75,7 +76,7 @@ export async function login(
     return { error: getFriendlyAuthError("login", error.code) };
   }
 
-  redirect(getSafeNextPath(formData.get("next")?.toString()));
+  redirect(getPostLoginPath(formData.get("next")?.toString()));
 }
 
 export async function signup(

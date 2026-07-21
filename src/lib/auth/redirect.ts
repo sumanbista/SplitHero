@@ -1,3 +1,5 @@
+export const DEFAULT_AUTHENTICATED_PATH = "/dashboard";
+
 export function getSafeNextPath(
   value: string | null | undefined,
   fallback = "/",
@@ -23,6 +25,10 @@ export function getSafeNextPath(
   } catch {
     return fallback;
   }
+}
+
+export function getPostLoginPath(value: string | null | undefined) {
+  return getSafeNextPath(value, DEFAULT_AUTHENTICATED_PATH);
 }
 
 export function addAuthStatusToPath(
