@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth/auth-form";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { getSafeNextPath } from "@/lib/auth/redirect";
+import {
+  DEFAULT_AUTHENTICATED_PATH,
+  getPostLoginPath,
+} from "@/lib/auth/redirect";
 import { getCurrentUser } from "@/lib/auth/session";
 
 type LoginPageProps = {
@@ -17,11 +20,11 @@ export const metadata: Metadata = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   if (await getCurrentUser()) {
-    redirect("/");
+    redirect(DEFAULT_AUTHENTICATED_PATH);
   }
 
   const params = await searchParams;
-  const nextPath = getSafeNextPath(params.next, "/");
+  const nextPath = getPostLoginPath(params.next);
 
   return (
     <AuthShell

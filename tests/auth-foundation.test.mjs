@@ -4,6 +4,7 @@ import test from "node:test";
 import { getFriendlyAuthError } from "../src/lib/auth/errors.ts";
 import {
   addAuthStatusToPath,
+  getPostLoginPath,
   getSafeNextPath,
 } from "../src/lib/auth/redirect.ts";
 import {
@@ -40,6 +41,12 @@ test("safe next paths reject external and protocol-relative redirects", () => {
   assert.equal(getSafeNextPath("//example.com"), "/");
   assert.equal(getSafeNextPath("/\\example.com"), "/");
   assert.equal(getSafeNextPath(undefined, "/protected"), "/protected");
+});
+
+test("post-login paths default to the dashboard and preserve safe destinations", () => {
+  assert.equal(getPostLoginPath(undefined), "/dashboard");
+  assert.equal(getPostLoginPath("/groups/public-token"), "/groups/public-token");
+  assert.equal(getPostLoginPath("https://example.com"), "/dashboard");
 });
 
 test("auth status redirects preserve safe route query parameters", () => {
