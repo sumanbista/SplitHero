@@ -6,14 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 type AuthShellProps = {
   children: ReactNode;
   description: string;
+  logoHref?: string;
   title: string;
 };
 
-export function AuthShell({ children, description, title }: AuthShellProps) {
+export function AuthShell({
+  children,
+  description,
+  logoHref = "/",
+  title,
+}: AuthShellProps) {
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex w-full max-w-5xl items-center px-4 py-5 sm:px-8 sm:py-6">
-        <AppLogo showMark />
+        <AppLogo href={logoHref} showMark />
       </header>
       <main className="mx-auto flex w-full max-w-md px-4 pt-2 pb-12 sm:px-8 sm:pt-12 sm:pb-20">
         <Card className="w-full rounded-2xl shadow-none sm:shadow-sm">

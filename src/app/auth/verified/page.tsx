@@ -7,6 +7,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { buttonVariants } from "@/components/ui/button";
 import {
   addAuthStatusToPath,
+  DEFAULT_AUTHENTICATED_PATH,
   getSafeNextPath,
 } from "@/lib/auth/redirect";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -28,12 +29,13 @@ export default async function VerifiedPage({ searchParams }: VerifiedPageProps) 
   }
 
   const nextPath = addAuthStatusToPath(
-    getSafeNextPath(params.next),
+    getSafeNextPath(params.next, DEFAULT_AUTHENTICATED_PATH),
     "email-verified",
   );
 
   return (
     <AuthShell
+      logoHref="/dashboard"
       title="Email verified"
       description="Your SplitHero account is ready and you’re signed in."
     >

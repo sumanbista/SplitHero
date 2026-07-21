@@ -10,7 +10,7 @@ export default function DashboardLoading() {
       aria-label="Loading your dashboard"
     >
       <header className="mx-auto flex w-full max-w-5xl items-center px-6 py-6 sm:px-8">
-        <AppLogo showMark />
+        <AppLogo href="/dashboard" showMark />
       </header>
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pt-8 pb-20 sm:px-8 sm:pt-12">
         <div className="flex flex-col gap-3">

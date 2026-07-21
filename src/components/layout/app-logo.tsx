@@ -1,13 +1,14 @@
 import Link from "next/link";
 
 type AppLogoProps = {
+  href?: string;
   showMark?: boolean;
 };
 
-export function AppLogo({ showMark = false }: AppLogoProps) {
+export function AppLogo({ href = "/", showMark = false }: AppLogoProps) {
   return (
     <Link
-      href="/"
+      href={href}
       className="inline-flex items-center gap-2.5 rounded-lg text-xl font-bold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus"
     >
       {showMark ? (

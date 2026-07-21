@@ -45,7 +45,7 @@ export default async function AccountPage() {
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-4 py-5 sm:px-8 sm:py-6">
-        <AppLogo showMark />
+        <AppLogo href="/dashboard" showMark />
         <nav aria-label="Account navigation">
           <SessionNavigation user={user} />
         </nav>

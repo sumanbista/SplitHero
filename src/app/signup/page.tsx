@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 
 import { AuthForm } from "@/components/auth/auth-form";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { getSafeNextPath } from "@/lib/auth/redirect";
+import {
+  DEFAULT_AUTHENTICATED_PATH,
+  getSafeNextPath,
+} from "@/lib/auth/redirect";
 import { getCurrentUser } from "@/lib/auth/session";
 
 type SignupPageProps = {
@@ -16,11 +19,11 @@ export const metadata: Metadata = {
 
 export default async function SignupPage({ searchParams }: SignupPageProps) {
   if (await getCurrentUser()) {
-    redirect("/");
+    redirect(DEFAULT_AUTHENTICATED_PATH);
   }
 
   const params = await searchParams;
-  const nextPath = getSafeNextPath(params.next, "/");
+  const nextPath = getSafeNextPath(params.next, DEFAULT_AUTHENTICATED_PATH);
 
   return (
     <AuthShell

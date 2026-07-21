@@ -14,7 +14,7 @@ export default function DashboardError({ unstable_retry }: DashboardErrorProps) 
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex w-full max-w-5xl items-center px-6 py-6 sm:px-8">
-        <AppLogo showMark />
+        <AppLogo href="/dashboard" showMark />
       </header>
       <main className="mx-auto w-full max-w-5xl px-6 pt-12 pb-20 sm:px-8 sm:pt-20">
         <Alert variant="destructive" className="max-w-xl p-5">

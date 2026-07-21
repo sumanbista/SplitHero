@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 export default function ResetPasswordPage() {
   return (
     <AuthShell
+      logoHref="/dashboard"
       title="Choose a new password"
       description="Use a new password for your SplitHero account."
     >
