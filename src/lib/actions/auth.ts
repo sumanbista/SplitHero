@@ -97,14 +97,24 @@ export async function login(
     return { error: getFriendlyAuthError("login", error.code) };
   }
 
-  redirect(getPostLoginPath(formData.get("next")?.toString()));
+  if (!data.user) {
+    await writeSecurityAuditEvent({
+      eventType: "auth.login",
+      outcome: "denied",
+    });
+
+    return {
+      error: "We could not complete this login attempt. Please try again.",
+    };
+  }
+
   await writeSecurityAuditEvent({
     eventType: "auth.login",
     outcome: "allowed",
     actorUserId: data.user.id,
   });
 
-  redirect(getSafeNextPath(formData.get("next")?.toString()));
+  redirect(getPostLoginPath(formData.get("next")?.toString()));
 }
 
 export async function signup(
