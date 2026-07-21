@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import { AppLogo } from "@/components/layout/app-logo";
 import { SessionNavigation } from "@/components/auth/session-navigation";
 import { CreateGroupForm } from "@/components/groups/create-group-form";
@@ -5,15 +7,12 @@ import { GroupPreview } from "@/components/landing/group-preview";
 import { HeroNetwork } from "@/components/landing/hero-network";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getCurrentUser } from "@/lib/auth/session";
 
-type HomeProps = {
-  searchParams: Promise<{ auth?: string }>;
-};
-
-export default async function Home({ searchParams }: HomeProps) {
-  const [user, params] = await Promise.all([getCurrentUser(), searchParams]);
+export default async function Home() {
+  if (await getCurrentUser()) {
+    redirect("/dashboard");
+  }
 
   return (
     <div className="min-h-dvh">
@@ -26,7 +25,7 @@ export default async function Home({ searchParams }: HomeProps) {
           >
             How it works
           </a>
-          <SessionNavigation user={user} />
+          <SessionNavigation user={null} />
           <Button
             size="lg"
             className="hidden sm:inline-flex"
@@ -39,17 +38,6 @@ export default async function Home({ searchParams }: HomeProps) {
       </header>
 
       <main>
-        {params.auth === "account-created" || params.auth === "email-verified" ? (
-          <div className="mx-auto w-full max-w-[86rem] px-6 pt-4 sm:px-8 lg:px-20">
-            <Alert className="border-primary/25 bg-primary-soft/40">
-              <AlertDescription className="text-foreground">
-                {params.auth === "email-verified"
-                  ? "Email verified. Your account is ready to use."
-                  : "Your account is ready and you are logged in."}
-              </AlertDescription>
-            </Alert>
-          </div>
-        ) : null}
         <section className="mx-auto grid w-full max-w-[86rem] items-center gap-12 px-6 pt-12 pb-20 sm:px-8 sm:pt-16 lg:grid-cols-[1.08fr_0.92fr] lg:gap-20 lg:px-20 lg:pt-20 lg:pb-40">
           <div>
             <h1 className="max-w-3xl text-5xl leading-[1.04] font-bold tracking-[-0.045em] sm:text-6xl lg:text-[4rem]">
@@ -63,7 +51,7 @@ export default async function Home({ searchParams }: HomeProps) {
               <HeroNetwork />
             </div>
           </div>
-          <CreateGroupForm isAuthenticated={Boolean(user)} />
+          <CreateGroupForm />
         </section>
 
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">

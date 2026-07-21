@@ -43,7 +43,9 @@ export default async function InvitationPage({ params }: InvitationPageProps) {
 
   return (
     <div className="min-h-dvh">
-      <header className="mx-auto flex w-full max-w-xl px-6 py-6"><AppLogo showMark /></header>
+      <header className="mx-auto flex w-full max-w-xl px-6 py-6">
+        <AppLogo href={user ? "/dashboard" : "/"} showMark />
+      </header>
       <main className="mx-auto w-full max-w-xl px-6 pt-10 pb-20">
         <Card>
           <CardHeader className="text-center">

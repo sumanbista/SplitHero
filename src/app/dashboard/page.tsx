@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, FolderHeart, Mail, MailOpen } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  FolderHeart,
+  Mail,
+  MailOpen,
+  Plus,
+} from "lucide-react";
 
 import { AppLogo } from "@/components/layout/app-logo";
 import { SessionNavigation } from "@/components/auth/session-navigation";
@@ -42,6 +49,12 @@ const accountDateFormatter = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   year: "numeric",
 });
+
+const dashboardAuthMessages: Record<string, string> = {
+  "account-created": "Your account is ready and you are logged in.",
+  "email-verified": "Email verified. Your account is ready to use.",
+  "password-updated": "Password updated. You’re signed in and ready to continue.",
+};
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -121,17 +134,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-6 sm:px-8">
-        <AppLogo showMark />
+        <AppLogo href="/dashboard" showMark />
         <nav aria-label="Account navigation">
           <SessionNavigation user={user} />
         </nav>
       </header>
 
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pt-8 pb-20 sm:px-8 sm:pt-12">
-        {params.auth === "password-updated" ? (
+        {params.auth && dashboardAuthMessages[params.auth] ? (
           <Alert className="border-primary/25 bg-primary-soft/40">
             <AlertDescription className="text-foreground">
-              Password updated. You’re signed in and ready to continue.
+              {dashboardAuthMessages[params.auth]}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -160,13 +173,22 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
           <section aria-labelledby="groups-title" className="flex min-w-0 flex-col gap-4">
-            <div>
-              <h2 id="groups-title" className="text-xl font-semibold tracking-tight">
-                Your groups
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Groups you own or joined through an invitation.
-              </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 id="groups-title" className="text-xl font-semibold tracking-tight">
+                  Your groups
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Groups you own or joined through an invitation.
+                </p>
+              </div>
+              <Link
+                href="/groups/new"
+                className={cn(buttonVariants({ size: "lg" }), "shrink-0")}
+              >
+                <Plus aria-hidden="true" />
+                Create group
+              </Link>
             </div>
 
             {hasGroups ? (
@@ -195,7 +217,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 </EmptyHeader>
                 <EmptyContent>
                   <Link
-                    href="/#create-group"
+                    href="/groups/new"
                     className={cn(buttonVariants({ size: "lg" }))}
                   >
                     Create a group

@@ -256,7 +256,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-6 sm:px-8">
-        <AppLogo showMark />
+        <AppLogo href={user ? "/dashboard" : "/"} showMark />
         <nav aria-label="Account navigation" className="flex items-center gap-1 sm:gap-3">
           <SessionNavigation user={user} />
         </nav>

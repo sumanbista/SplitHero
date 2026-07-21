@@ -19,7 +19,7 @@ export default async function ProtectedPage() {
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex w-full max-w-5xl items-center px-6 py-6 sm:px-8">
-        <AppLogo showMark />
+        <AppLogo href="/dashboard" showMark />
       </header>
       <main className="mx-auto w-full max-w-lg px-6 pt-12 pb-20 sm:px-8">
         <Card className="rounded-2xl">
@@ -35,8 +35,8 @@ export default async function ProtectedPage() {
               as <span className="font-medium text-foreground">{user.email}</span>.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/" className={cn(buttonVariants({ size: "lg" }))}>
-                Back to SplitHero
+              <Link href="/dashboard" className={cn(buttonVariants({ size: "lg" }))}>
+                Back to dashboard
               </Link>
               <form action={logout}>
                 <Button type="submit" size="lg" variant="outline">

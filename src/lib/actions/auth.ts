@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getFriendlyAuthError } from "@/lib/auth/errors";
 import {
   addAuthStatusToPath,
+  DEFAULT_AUTHENTICATED_PATH,
   getPostLoginPath,
   getSafeNextPath,
 } from "@/lib/auth/redirect";
@@ -138,7 +139,10 @@ export async function signup(
   }
 
   const supabase = await createClient();
-  const nextPath = getSafeNextPath(formData.get("next")?.toString());
+  const nextPath = getSafeNextPath(
+    formData.get("next")?.toString(),
+    DEFAULT_AUTHENTICATED_PATH,
+  );
   const { data, error } = await supabase.auth.signUp({
     ...validated.data,
     options: {
