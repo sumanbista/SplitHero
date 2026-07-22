@@ -139,7 +139,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
     supabase
       .from("expenses")
       .select(
-        "id, title, amount_cents, paid_by_member_id, expense_date, paid_by:members!expenses_paid_by_member_id_fkey(id, name), participants:expense_participants(member_id, share_cents, member:members(id, name))",
+        "id, title, amount_cents, paid_by_member_id, expense_date, notes, updated_at, paid_by:members!expenses_paid_by_member_id_fkey(id, name), participants:expense_participants(member_id, share_cents, member:members(id, name))",
       )
       .eq("group_id", group.id)
       .order("expense_date", { ascending: false })
@@ -219,9 +219,12 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
       title: expense.title,
       amountCents: Number(expense.amount_cents),
       expenseDate: expense.expense_date,
+      notes: expense.notes ?? "",
+      paidByMemberId: expense.paid_by_member_id,
       paidByName: paidBy
         ? memberNames.get(paidBy.id) ?? paidBy.name
         : "Unknown member",
+      updatedAt: expense.updated_at,
       participants: expense.participants
         .flatMap((participant) => {
           const member = getRelatedRecord(participant.member);
@@ -392,6 +395,12 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
               <ExpenseList
                 expenses={expenses}
                 hasMembers={members.length > 0}
+                hasSettlementPayments={settlementPaymentRows.length > 0}
+                members={displayedMembers}
+                canManageExpenses={
+                  permissions.canEditExpenses && permissions.canDeleteExpenses
+                }
+                shareToken={shareToken}
               />
             </DashboardSection>
 
