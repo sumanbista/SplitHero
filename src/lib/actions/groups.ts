@@ -71,6 +71,10 @@ export async function createGroup(
       }
 
       if (error.code !== "23505") {
+        console.error("Group creation database error.", {
+          code: error.code,
+          message: error.message,
+        });
         return {
           formError: "We couldn’t create your group. Please try again.",
           value: validation.data.name,
@@ -84,6 +88,11 @@ export async function createGroup(
         value: validation.data.name,
       };
     }
+
+    console.error("Unexpected group creation error.", {
+      name: error instanceof Error ? error.name : typeof error,
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
 
     return {
       formError: "We couldn’t create your group. Please try again.",

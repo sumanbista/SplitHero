@@ -121,6 +121,16 @@ assert.match(
   /revoke all on table public\.security_audit_log from public, anon, authenticated/i,
   "Security audit events must remain server-only.",
 );
+assert.match(
+  migrationSql,
+  /elsif tg_table_name = 'group_memberships' then\s+if new\.member_id is not null/i,
+  "Nullable group membership links must remain inside their table branch.",
+);
+assert.match(
+  migrationSql,
+  /insert into public\.members \(group_id, name, user_id\)[\s\S]*returning id into v_member_id/i,
+  "Authenticated group owners must receive an expense participant record.",
+);
 
 const functionDefinitions = migrationSql.matchAll(
   /create or replace function public\.[\s\S]*?\$\$;/gi,
