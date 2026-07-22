@@ -8,6 +8,7 @@ import {
   ReceiptText,
   Scale,
   Users,
+  Activity as ActivityIcon,
 } from "lucide-react";
 import { notFound } from "next/navigation";
 
@@ -24,6 +25,7 @@ import {
   type BalanceListItem,
 } from "@/components/groups/balance-list";
 import { GroupSummary } from "@/components/groups/group-summary";
+import { GroupActivityList } from "@/components/groups/group-activity-list";
 import { GroupAccessDenied } from "@/components/groups/group-access-denied";
 import { GroupAccessSettings } from "@/components/groups/group-access-settings";
 import { ShareGroupButton } from "@/components/groups/share-group-button";
@@ -48,6 +50,10 @@ import {
 import { calculateMemberBalances } from "@/lib/calculations/balances";
 import { simplifySettlements } from "@/lib/calculations/settlements";
 import { getGroupAccess } from "@/lib/groups/access";
+import {
+  formatGroupActivityEvent,
+  type GroupActivityEventType,
+} from "@/lib/group-activity";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMemberDisplayName } from "@/lib/utils/member";
 
@@ -128,7 +134,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
         .order("created_at", { ascending: false })
     : Promise.resolve({ data: [], error: null });
 
-  const [membersResult, expensesResult, settlementPaymentsResult, invitationsResult] =
+  const [membersResult, expensesResult, settlementPaymentsResult, invitationsResult, activityResult] =
     await Promise.all([
     supabase
       .from("members")
@@ -153,6 +159,13 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
       .order("payment_date", { ascending: false })
       .order("created_at", { ascending: false }),
     invitationsPromise,
+    supabase
+      .from("group_activity_events")
+      .select("id, actor_name_snapshot, event_type, metadata, created_at")
+      .eq("group_id", group.id)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(50),
   ]);
 
   const { data: members, error: membersError } = membersResult;
@@ -160,8 +173,15 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
   const { data: settlementPaymentRows, error: settlementPaymentsError } =
     settlementPaymentsResult;
   const { data: invitationRows, error: invitationsError } = invitationsResult;
+  const { data: activityRows, error: activityError } = activityResult;
 
-  if (membersError || expensesError || settlementPaymentsError || invitationsError) {
+  if (
+    membersError ||
+    expensesError ||
+    settlementPaymentsError ||
+    invitationsError ||
+    activityError
+  ) {
     throw new Error("Unable to load group details.");
   }
 
@@ -289,6 +309,15 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
     (total, expense) => total + expense.amountCents,
     0,
   );
+  const activities = activityRows.map((activity) =>
+    formatGroupActivityEvent({
+      id: String(activity.id),
+      actorName: activity.actor_name_snapshot,
+      eventType: activity.event_type as GroupActivityEventType,
+      metadata: activity.metadata,
+      createdAt: activity.created_at,
+    }),
+  );
 
   return (
     <div className="min-h-dvh">
@@ -402,6 +431,19 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
                 }
                 shareToken={shareToken}
               />
+            </DashboardSection>
+
+            <DashboardSection
+              id="activity-title"
+              title="Recent activity"
+              description="Important changes made within this group."
+              icon={<ActivityIcon aria-hidden="true" />}
+            >
+              <Card>
+                <CardContent>
+                  <GroupActivityList activities={activities} />
+                </CardContent>
+              </Card>
             </DashboardSection>
 
             <DashboardSection
