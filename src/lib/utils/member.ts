@@ -11,3 +11,10 @@ export function getMemberInitials(name: string) {
 
   return `${firstInitial}${lastInitial}`.toLocaleUpperCase();
 }
+
+export function getMemberDisplayName(
+  memberName: string,
+  profileDisplayName: string | null | undefined,
+) {
+  return profileDisplayName?.trim() || memberName;
+}
