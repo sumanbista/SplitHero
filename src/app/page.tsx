@@ -17,7 +17,7 @@ export default async function Home() {
   return (
     <div className="min-h-dvh">
       <header className="mx-auto flex w-full max-w-[86rem] items-center justify-between px-6 py-6 sm:px-8 lg:px-20">
-        <AppLogo />
+        <AppLogo showMark />
         <nav aria-label="Main navigation" className="flex items-center gap-1 sm:gap-3">
           <a
             href="#how-it-works"
