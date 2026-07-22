@@ -281,6 +281,7 @@ export async function updateDisplayName(
 
   revalidatePath("/account");
   revalidatePath("/dashboard");
+  revalidatePath("/groups/[shareToken]", "page");
 
   return { success: "Display name updated." };
 }

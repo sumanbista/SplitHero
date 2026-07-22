@@ -49,6 +49,7 @@ import { calculateMemberBalances } from "@/lib/calculations/balances";
 import { simplifySettlements } from "@/lib/calculations/settlements";
 import { getGroupAccess } from "@/lib/groups/access";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getMemberDisplayName } from "@/lib/utils/member";
 
 type GroupPageProps = {
   params: Promise<{ shareToken: string }>;
@@ -164,6 +165,38 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
     throw new Error("Unable to load group details.");
   }
 
+  const linkedUserIds = [
+    ...new Set(
+      members.flatMap((member) => member.user_id ? [member.user_id] : []),
+    ),
+  ];
+  const profilesResult = linkedUserIds.length > 0
+    ? await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", linkedUserIds)
+    : { data: [], error: null };
+
+  if (profilesResult.error) {
+    throw new Error("Unable to load group member profiles.");
+  }
+
+  const profileDisplayNames = new Map(
+    profilesResult.data.map((profile) => [profile.id, profile.display_name]),
+  );
+  const displayedMembers = members.map((member) => ({
+    ...member,
+    name: member.user_id
+      ? getMemberDisplayName(
+          member.name,
+          profileDisplayNames.get(member.user_id),
+        )
+      : member.name,
+  }));
+  const memberNames = new Map(
+    displayedMembers.map((member) => [member.id, member.name]),
+  );
+
   const pendingInvitations = invitationRows.map((invitation) => ({
     id: invitation.id,
     email: invitation.email,
@@ -171,7 +204,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
     expiresAt: invitation.expires_at,
     memberName: getRelatedRecord(invitation.invited_member)?.name ?? null,
   }));
-  const availableMembers = members
+  const availableMembers = displayedMembers
     .filter((member) => !member.user_id)
     .map((member) => ({ id: member.id, name: member.name }));
 
@@ -186,7 +219,9 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
       title: expense.title,
       amountCents: Number(expense.amount_cents),
       expenseDate: expense.expense_date,
-      paidByName: paidBy?.name ?? "Unknown member",
+      paidByName: paidBy
+        ? memberNames.get(paidBy.id) ?? paidBy.name
+        : "Unknown member",
       participants: expense.participants
         .flatMap((participant) => {
           const member = getRelatedRecord(participant.member);
@@ -195,7 +230,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
             ? [
                 {
                   memberId: member.id,
-                  memberName: member.name,
+                  memberName: memberNames.get(member.id) ?? member.name,
                   shareCents: Number(participant.share_cents),
                 },
               ]
@@ -208,7 +243,6 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
         ),
     };
   });
-  const memberNames = new Map(members.map((member) => [member.id, member.name]));
   const calculatedBalances = calculateMemberBalances(
     members,
     expenseRows.map((expense) => ({
@@ -290,7 +324,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
             {permissions.canContribute ? (
-              <AddExpenseDialog shareToken={shareToken} members={members} />
+              <AddExpenseDialog shareToken={shareToken} members={displayedMembers} />
             ) : null}
             {permissions.canManageMembers ? (
               <AddMemberDialog shareToken={shareToken} />
@@ -389,7 +423,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
                 </div>
               </CardHeader>
               <CardContent>
-                <MemberList members={members} />
+                <MemberList members={displayedMembers} />
               </CardContent>
             </Card>
 
