@@ -65,6 +65,8 @@ const expectedPaths = [
   "/security_rate_limits",
   "/security_audit_log",
   "/rpc/create_expense_with_participants",
+  "/rpc/update_expense_with_participants",
+  "/rpc/delete_expense",
   "/rpc/record_recommended_settlement_payment",
   "/rpc/accept_group_invitation",
   "/rpc/consume_security_rate_limit",

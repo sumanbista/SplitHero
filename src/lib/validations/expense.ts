@@ -64,3 +64,8 @@ export const createExpenseSchema = z.object({
     .max(1000, "Notes must be 1,000 characters or fewer.")
     .transform((value) => value || undefined),
 });
+
+export const expenseMutationTargetSchema = z.object({
+  expenseId: z.string().uuid(),
+  expectedUpdatedAt: z.string().datetime({ offset: true }),
+});

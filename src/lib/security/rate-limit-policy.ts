@@ -4,6 +4,8 @@ export type SensitiveAction =
   | "auth.password_update"
   | "auth.signup"
   | "expense.create"
+  | "expense.delete"
+  | "expense.update"
   | "group.access.update"
   | "group.create"
   | "invitation.accept"
@@ -24,6 +26,8 @@ export const sensitiveActionPolicies: Record<SensitiveAction, RateLimitPolicy> =
   "auth.password_update": { limit: 5, windowSeconds: 60 * 60 },
   "auth.signup": { limit: 5, windowSeconds: 60 * 60 },
   "expense.create": { limit: 120, windowSeconds: 60 * 60 },
+  "expense.delete": { limit: 60, windowSeconds: 60 * 60 },
+  "expense.update": { limit: 120, windowSeconds: 60 * 60 },
   "group.access.update": { limit: 20, windowSeconds: 60 * 60 },
   "group.create": { limit: 10, windowSeconds: 60 * 60 },
   "invitation.accept": { limit: 20, windowSeconds: 60 * 60 },

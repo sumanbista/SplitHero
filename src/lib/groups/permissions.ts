@@ -5,6 +5,8 @@ export type GroupPermissions = {
   canView: boolean;
   canManageMembers: boolean;
   canContribute: boolean;
+  canEditExpenses: boolean;
+  canDeleteExpenses: boolean;
   canInvite: boolean;
   canChangeAccess: boolean;
 };
@@ -21,6 +23,8 @@ export function getGroupPermissions(
     canView: hasPublicLinkAccess || role !== null,
     canManageMembers: hasPublicLinkAccess || isOwner,
     canContribute: hasPublicLinkAccess || isOwner || canContributeAsMember,
+    canEditExpenses: hasPublicLinkAccess || isOwner || canContributeAsMember,
+    canDeleteExpenses: hasPublicLinkAccess || isOwner || canContributeAsMember,
     canInvite: isOwner,
     canChangeAccess: isOwner,
   };

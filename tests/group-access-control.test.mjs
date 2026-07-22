@@ -31,6 +31,8 @@ test("private roles enforce owner member and viewer permissions", () => {
     canView: true,
     canManageMembers: true,
     canContribute: true,
+    canEditExpenses: true,
+    canDeleteExpenses: true,
     canInvite: true,
     canChangeAccess: true,
   });
@@ -38,6 +40,8 @@ test("private roles enforce owner member and viewer permissions", () => {
     canView: true,
     canManageMembers: false,
     canContribute: true,
+    canEditExpenses: true,
+    canDeleteExpenses: true,
     canInvite: false,
     canChangeAccess: false,
   });
@@ -45,6 +49,8 @@ test("private roles enforce owner member and viewer permissions", () => {
     canView: true,
     canManageMembers: false,
     canContribute: false,
+    canEditExpenses: false,
+    canDeleteExpenses: false,
     canInvite: false,
     canChangeAccess: false,
   });

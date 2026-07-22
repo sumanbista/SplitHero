@@ -19,6 +19,10 @@ const ownerMembershipFixMigrationUrl = new URL(
   "../supabase/migrations/09_fix_owner_group_membership.sql",
   import.meta.url,
 );
+const expenseMutationsMigrationUrl = new URL(
+  "../supabase/migrations/10_add_expense_mutations.sql",
+  import.meta.url,
+);
 
 async function readTree(directory) {
   const directoryPath = directory instanceof URL ? fileURLToPath(directory) : directory;
@@ -37,6 +41,8 @@ test("unauthenticated and cross-user sessions cannot access private groups", () 
     canView: false,
     canManageMembers: false,
     canContribute: false,
+    canEditExpenses: false,
+    canDeleteExpenses: false,
     canInvite: false,
     canChangeAccess: false,
   });
@@ -48,6 +54,15 @@ test("private role mutations remain least-privilege", () => {
   assert.equal(getGroupPermissions("private", "member").canManageMembers, false);
   assert.equal(getGroupPermissions("private", "viewer").canContribute, false);
   assert.equal(getGroupPermissions("private", "viewer").canInvite, false);
+});
+
+test("expense mutation permissions are explicit for every access mode", () => {
+  assert.equal(getGroupPermissions("public", null).canEditExpenses, true);
+  assert.equal(getGroupPermissions("public", null).canDeleteExpenses, true);
+  assert.equal(getGroupPermissions("private", "owner").canEditExpenses, true);
+  assert.equal(getGroupPermissions("private", "member").canDeleteExpenses, true);
+  assert.equal(getGroupPermissions("private", "viewer").canEditExpenses, false);
+  assert.equal(getGroupPermissions("private", "viewer").canDeleteExpenses, false);
 });
 
 test("expired sessions fail closed while public share links remain compatible", async () => {
@@ -165,6 +180,39 @@ test("every sensitive mutation class has a bounded rate-limit policy", () => {
   assert.ok(sensitiveActionPolicies["invitation.create.group"]);
   assert.ok(sensitiveActionPolicies["auth.password_reset"]);
   assert.ok(sensitiveActionPolicies["group.create"]);
+  assert.ok(sensitiveActionPolicies["expense.update"]);
+  assert.ok(sensitiveActionPolicies["expense.delete"]);
+});
+
+test("expense updates and deletes are atomic, locked, and conflict-aware", async () => {
+  const migration = await readFile(expenseMutationsMigrationUrl, "utf8");
+
+  for (const functionName of [
+    "create_expense_with_participants",
+    "update_expense_with_participants",
+    "delete_expense",
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(
+        `function public\\.${functionName}[\\s\\S]*from public\\.groups[\\s\\S]*for update`,
+        "i",
+      ),
+    );
+  }
+
+  assert.match(
+    migration,
+    /v_current_updated_at is distinct from p_expected_updated_at[\s\S]*return 'conflict'/i,
+  );
+  assert.match(
+    migration,
+    /delete from public\.expense_participants[\s\S]*insert into public\.expense_participants/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /delete from public\.settlement_payments/i,
+  );
 });
 
 test("the service-role key is confined to server-only code and never public-prefixed", async () => {

@@ -1,5 +1,7 @@
 import { ChevronDown, ReceiptText } from "lucide-react";
 
+import { ExpenseActions } from "@/components/expenses/expense-actions";
+
 import {
   Card,
   CardAction,
@@ -23,7 +25,10 @@ export type ExpenseListItem = {
   title: string;
   amountCents: number;
   expenseDate: string;
+  notes: string;
+  paidByMemberId: string;
   paidByName: string;
+  updatedAt: string;
   participants: Array<{
     memberId: string;
     memberName: string;
@@ -34,9 +39,20 @@ export type ExpenseListItem = {
 type ExpenseListProps = {
   expenses: ExpenseListItem[];
   hasMembers: boolean;
+  hasSettlementPayments: boolean;
+  members: Array<{ id: string; name: string }>;
+  canManageExpenses: boolean;
+  shareToken: string;
 };
 
-export function ExpenseList({ expenses, hasMembers }: ExpenseListProps) {
+export function ExpenseList({
+  expenses,
+  hasMembers,
+  hasSettlementPayments,
+  members,
+  canManageExpenses,
+  shareToken,
+}: ExpenseListProps) {
   if (expenses.length === 0) {
     return (
       <Empty className="border bg-primary-soft/40 py-10">
@@ -67,16 +83,29 @@ export function ExpenseList({ expenses, hasMembers }: ExpenseListProps) {
                 {expense.participants.length}{" "}
                 {expense.participants.length === 1 ? "person" : "people"}
               </CardDescription>
-              <CardAction>
+              <CardAction className="flex items-center gap-1">
                 <p className="text-lg font-semibold tabular-nums">
-                {formatCurrencyFromCents(expense.amountCents)}
+                  {formatCurrencyFromCents(expense.amountCents)}
                 </p>
+                {canManageExpenses ? (
+                  <ExpenseActions
+                    expense={expense}
+                    hasSettlementPayments={hasSettlementPayments}
+                    members={members}
+                    shareToken={shareToken}
+                  />
+                ) : null}
               </CardAction>
             </CardHeader>
             <CardContent>
               <time className="block text-xs text-muted-foreground">
                 {formatExpenseDate(expense.expenseDate)}
               </time>
+            {expense.notes ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                {expense.notes}
+              </p>
+            ) : null}
             <details className="group mt-4">
               <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 text-sm font-medium text-primary focus-visible:rounded focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
                 View split

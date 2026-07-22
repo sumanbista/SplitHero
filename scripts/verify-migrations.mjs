@@ -75,6 +75,8 @@ for (const table of tables) {
 
 const serviceRoleFunctions = [
   "create_expense_with_participants",
+  "update_expense_with_participants",
+  "delete_expense",
   "record_recommended_settlement_payment",
   "consume_security_rate_limit",
 ];
