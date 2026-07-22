@@ -58,6 +58,7 @@ const tables = [
   "group_invitations",
   "security_rate_limits",
   "security_audit_log",
+  "group_activity_events",
 ];
 
 for (const table of tables) {
@@ -79,6 +80,10 @@ const serviceRoleFunctions = [
   "delete_expense",
   "record_recommended_settlement_payment",
   "consume_security_rate_limit",
+  "update_group_access_with_activity",
+  "create_member_with_activity",
+  "create_group_invitation_with_activity",
+  "decline_group_invitation_with_activity",
 ];
 
 for (const functionName of serviceRoleFunctions) {

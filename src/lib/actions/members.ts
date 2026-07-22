@@ -99,11 +99,14 @@ export async function addMember(
       return duplicateNameError(name);
     }
 
-    const { data: member, error: insertError } = await supabase
-      .from("members")
-      .insert({ group_id: access.group.id, name })
-      .select("id")
-      .single();
+    const { data: memberId, error: insertError } = await supabase.rpc(
+      "create_member_with_activity",
+      {
+        p_group_id: access.group.id,
+        p_name: name,
+        p_actor_user_id: access.user?.id ?? null,
+      },
+    );
 
     if (insertError) {
       if (insertError.code === "23505") {
@@ -119,7 +122,7 @@ export async function addMember(
     revalidatePath(`/groups/${shareToken}`);
 
     return {
-      memberId: member.id,
+      memberId,
       memberName: name,
     };
   } catch (error) {

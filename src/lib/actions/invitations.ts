@@ -123,26 +123,21 @@ export async function createInvitation(
   }
 
   const now = new Date();
-  await supabase
-    .from("group_invitations")
-    .update({ status: "expired", responded_at: now.toISOString() })
-    .eq("group_id", access.group.id)
-    .eq("email", validation.data.email)
-    .eq("status", "pending")
-    .lte("expires_at", now.toISOString());
-
   const token = generateInvitationToken();
-  const { error: invitationError } = await supabase
-    .from("group_invitations")
-    .insert({
-      group_id: access.group.id,
-      email: validation.data.email,
-      token_hash: hashInvitationToken(token),
-      role: validation.data.role,
-      invited_member_id: validation.data.memberId,
-      invited_by_user_id: user.id,
-      expires_at: new Date(now.getTime() + INVITATION_LIFETIME_MS).toISOString(),
-    });
+  const { error: invitationError } = await supabase.rpc(
+    "create_group_invitation_with_activity",
+    {
+      p_group_id: access.group.id,
+      p_email: validation.data.email,
+      p_token_hash: hashInvitationToken(token),
+      p_role: validation.data.role,
+      p_invited_member_id: validation.data.memberId ?? null,
+      p_invited_by_user_id: user.id,
+      p_expires_at: new Date(
+        now.getTime() + INVITATION_LIFETIME_MS,
+      ).toISOString(),
+    },
+  );
 
   if (invitationError) {
     if (invitationError.code === "23505") {
@@ -297,13 +292,14 @@ export async function declineInvitation(formData: FormData) {
     redirect("/dashboard?invitation=unavailable");
   }
 
-  const { data, error } = await context.supabase
-    .from("group_invitations")
-    .update({ status: "declined", responded_at: new Date().toISOString() })
-    .eq("id", context.invitation.id)
-    .eq("status", "pending")
-    .select("id")
-    .maybeSingle();
+  const { data, error } = await context.supabase.rpc(
+    "decline_group_invitation_with_activity",
+    {
+      p_invitation_id: context.invitation.id,
+      p_user_id: context.user.id,
+      p_email: context.email,
+    },
+  );
 
   if (error || !data) {
     redirect("/dashboard?invitation=unavailable");

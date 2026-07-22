@@ -186,6 +186,7 @@ export async function addExpense(
         p_participant_shares: shares.map((share) => share.shareCents),
         p_expense_date: input.expenseDate ?? null,
         p_notes: input.notes ?? null,
+        p_actor_user_id: access.user?.id ?? null,
       },
     );
 
@@ -324,6 +325,7 @@ export async function updateExpense(
         p_participant_shares: shares.map((share) => share.shareCents),
         p_expense_date: input.expenseDate ?? null,
         p_notes: input.notes ?? null,
+        p_actor_user_id: access.user?.id ?? null,
       },
     );
 
@@ -423,6 +425,7 @@ export async function deleteExpense(
         p_group_id: access.group.id,
         p_expense_id: target.expenseId,
         p_expected_updated_at: target.expectedUpdatedAt,
+        p_actor_user_id: access.user?.id ?? null,
       },
     );
 

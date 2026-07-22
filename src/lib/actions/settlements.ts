@@ -120,6 +120,7 @@ export async function recordSettlementPayment(
         p_from_member_id: input.fromMemberId,
         p_to_member_id: input.toMemberId,
         p_amount_cents: input.amountCents,
+        p_actor_user_id: access.user?.id ?? null,
       },
     );
 

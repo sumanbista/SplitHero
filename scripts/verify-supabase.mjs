@@ -64,12 +64,17 @@ const expectedPaths = [
   "/group_invitations",
   "/security_rate_limits",
   "/security_audit_log",
+  "/group_activity_events",
   "/rpc/create_expense_with_participants",
   "/rpc/update_expense_with_participants",
   "/rpc/delete_expense",
   "/rpc/record_recommended_settlement_payment",
   "/rpc/accept_group_invitation",
   "/rpc/consume_security_rate_limit",
+  "/rpc/update_group_access_with_activity",
+  "/rpc/create_member_with_activity",
+  "/rpc/create_group_invitation_with_activity",
+  "/rpc/decline_group_invitation_with_activity",
 ];
 
 for (const expectedPath of expectedPaths) {

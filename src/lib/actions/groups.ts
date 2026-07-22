@@ -146,12 +146,16 @@ export async function updateGroupAccess(
     });
 
     const supabase = createAdminClient();
-    const { error } = await supabase
-      .from("groups")
-      .update({ access_mode: validation.data })
-      .eq("id", access.group.id);
+    const { data: result, error } = await supabase.rpc(
+      "update_group_access_with_activity",
+      {
+        p_group_id: access.group.id,
+        p_access_mode: validation.data,
+        p_actor_user_id: access.user?.id ?? null,
+      },
+    );
 
-    if (error) {
+    if (error || (result !== "updated" && result !== "unchanged")) {
       return { formError: "We couldn’t update group access. Please try again." };
     }
 
