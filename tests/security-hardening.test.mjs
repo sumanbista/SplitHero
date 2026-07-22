@@ -15,6 +15,10 @@ const invitationMigrationUrl = new URL(
   "../supabase/migrations/06_add_group_memberships_and_invitations.sql",
   import.meta.url,
 );
+const ownerMembershipFixMigrationUrl = new URL(
+  "../supabase/migrations/09_fix_owner_group_membership.sql",
+  import.meta.url,
+);
 
 async function readTree(directory) {
   const directoryPath = directory instanceof URL ? fileURLToPath(directory) : directory;
@@ -115,6 +119,39 @@ test("database guards reject cross-group financial and membership references", a
   ]) {
     assert.match(migration, new RegExp(`create trigger ${trigger}`, "i"));
   }
+});
+
+test("nullable membership fields cannot fall through to another table branch", async () => {
+  const migration = await readFile(ownerMembershipFixMigrationUrl, "utf8");
+
+  assert.match(
+    migration,
+    /elsif tg_table_name = 'group_memberships' then\s+if new\.member_id is not null/i,
+  );
+  assert.match(
+    migration,
+    /elsif tg_table_name = 'group_invitations' then\s+if new\.invited_member_id is not null/i,
+  );
+  assert.doesNotMatch(
+    migration,
+    /tg_table_name = 'group_memberships' and new\.member_id/i,
+  );
+});
+
+test("authenticated group owners are atomically linked to expense participants", async () => {
+  const migration = await readFile(ownerMembershipFixMigrationUrl, "utf8");
+
+  assert.match(migration, /if new\.created_by_user_id is not null then/i);
+  assert.match(
+    migration,
+    /insert into public\.members \(group_id, name, user_id\)[\s\S]*returning id into v_member_id/i,
+  );
+  assert.match(
+    migration,
+    /insert into public\.group_memberships \([\s\S]*member_id[\s\S]*v_member_id[\s\S]*'owner'/i,
+  );
+  assert.match(migration, /'Group owner'/i);
+  assert.doesNotMatch(migration, /auth_user\.email/i);
 });
 
 test("every sensitive mutation class has a bounded rate-limit policy", () => {
