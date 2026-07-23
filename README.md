@@ -9,6 +9,8 @@ while private groups require an authenticated owner, member, or viewer role.
 
 - Create an expense-sharing group with a unique shareable link
 - Add members without requiring email addresses or accounts
+- Rename, archive, restore, and safely remove unused guest members
+- Review member-specific balances, expense totals, and payment summaries
 - Record expenses with a payer, participants, date, and optional notes
 - Split expenses equally with deterministic remainder-cent handling
 - Calculate each member’s current balance using integer cents
@@ -102,7 +104,7 @@ Open [http://localhost:3000](http://localhost:3000).
   groups remain unowned and cannot be claimed through the normal share URL.
 - Expenses support equal splits only.
 - Each group uses a single US-dollar currency format.
-- Existing members, expenses, and payments cannot be edited or deleted through the UI.
+- Settlement payments cannot be edited or deleted through the UI.
 - Receipt uploads, notifications, recurring expenses, and payment-provider integrations are not included.
 
 ## Production deployment

@@ -4,6 +4,9 @@ export type GroupRole = "owner" | "member" | "viewer";
 export type GroupPermissions = {
   canView: boolean;
   canManageMembers: boolean;
+  canRenameMembers: boolean;
+  canArchiveMembers: boolean;
+  canRemoveMembers: boolean;
   canContribute: boolean;
   canEditExpenses: boolean;
   canDeleteExpenses: boolean;
@@ -22,6 +25,9 @@ export function getGroupPermissions(
   return {
     canView: hasPublicLinkAccess || role !== null,
     canManageMembers: hasPublicLinkAccess || isOwner,
+    canRenameMembers: hasPublicLinkAccess || isOwner,
+    canArchiveMembers: hasPublicLinkAccess || isOwner,
+    canRemoveMembers: hasPublicLinkAccess || isOwner,
     canContribute: hasPublicLinkAccess || isOwner || canContributeAsMember,
     canEditExpenses: hasPublicLinkAccess || isOwner || canContributeAsMember,
     canDeleteExpenses: hasPublicLinkAccess || isOwner || canContributeAsMember,

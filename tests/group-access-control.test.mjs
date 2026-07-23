@@ -30,6 +30,9 @@ test("private roles enforce owner member and viewer permissions", () => {
   assert.deepEqual(getGroupPermissions("private", "owner"), {
     canView: true,
     canManageMembers: true,
+    canRenameMembers: true,
+    canArchiveMembers: true,
+    canRemoveMembers: true,
     canContribute: true,
     canEditExpenses: true,
     canDeleteExpenses: true,
@@ -39,6 +42,9 @@ test("private roles enforce owner member and viewer permissions", () => {
   assert.deepEqual(getGroupPermissions("private", "member"), {
     canView: true,
     canManageMembers: false,
+    canRenameMembers: false,
+    canArchiveMembers: false,
+    canRemoveMembers: false,
     canContribute: true,
     canEditExpenses: true,
     canDeleteExpenses: true,
@@ -48,6 +54,9 @@ test("private roles enforce owner member and viewer permissions", () => {
   assert.deepEqual(getGroupPermissions("private", "viewer"), {
     canView: true,
     canManageMembers: false,
+    canRenameMembers: false,
+    canArchiveMembers: false,
+    canRemoveMembers: false,
     canContribute: false,
     canEditExpenses: false,
     canDeleteExpenses: false,

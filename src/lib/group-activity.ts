@@ -14,6 +14,10 @@ export type GroupActivityEventType =
   | "group.renamed"
   | "group.access_changed"
   | "member.added"
+  | "member.renamed"
+  | "member.archived"
+  | "member.restored"
+  | "member.removed"
   | "expense.created"
   | "expense.updated"
   | "expense.deleted"
@@ -120,6 +124,19 @@ export function formatGroupActivityEvent(
       break;
     case "member.added":
       summary = `${actor} added ${getString(metadata, "memberName") ?? "a member"} to the group.`;
+      break;
+    case "member.renamed":
+      summary = `${actor} renamed a member.`;
+      details = `${quoted(getString(metadata, "previousName"), "Unknown member")} → ${quoted(getString(metadata, "memberName"), "Unknown member")}`;
+      break;
+    case "member.archived":
+      summary = `${actor} archived ${getString(metadata, "memberName") ?? "a member"}.`;
+      break;
+    case "member.restored":
+      summary = `${actor} restored ${getString(metadata, "memberName") ?? "a member"}.`;
+      break;
+    case "member.removed":
+      summary = `${actor} permanently removed ${getString(metadata, "memberName") ?? "an unused member"}.`;
       break;
     case "expense.created": {
       const amount = getNumber(metadata, "amountCents");

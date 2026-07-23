@@ -13,6 +13,7 @@ export type SensitiveAction =
   | "invitation.create.user"
   | "invitation.decline"
   | "member.create"
+  | "member.update"
   | "settlement.create";
 
 export type RateLimitPolicy = {
@@ -35,5 +36,6 @@ export const sensitiveActionPolicies: Record<SensitiveAction, RateLimitPolicy> =
   "invitation.create.user": { limit: 10, windowSeconds: 60 * 60 },
   "invitation.decline": { limit: 20, windowSeconds: 60 * 60 },
   "member.create": { limit: 60, windowSeconds: 60 * 60 },
+  "member.update": { limit: 120, windowSeconds: 60 * 60 },
   "settlement.create": { limit: 120, windowSeconds: 60 * 60 },
 };

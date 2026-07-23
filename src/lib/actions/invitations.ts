@@ -111,6 +111,7 @@ export async function createInvitation(
       .select("id, user_id")
       .eq("id", validation.data.memberId)
       .eq("group_id", access.group.id)
+      .eq("is_active", true)
       .maybeSingle();
 
     if (memberError) {
