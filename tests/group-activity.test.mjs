@@ -48,6 +48,27 @@ test("retains a useful snapshot for deleted expenses", () => {
   );
 });
 
+test("formats member lifecycle snapshots", () => {
+  const renamed = formatGroupActivityEvent({
+    id: "3",
+    actorName: "Alex",
+    eventType: "member.renamed",
+    metadata: { previousName: "Sam", memberName: "Sammy" },
+    createdAt: "2026-07-22T12:00:00.000Z",
+  });
+  const archived = formatGroupActivityEvent({
+    id: "4",
+    actorName: "Alex",
+    eventType: "member.archived",
+    metadata: { memberName: "Sammy" },
+    createdAt: "2026-07-22T12:00:00.000Z",
+  });
+
+  assert.equal(renamed.summary, "Alex renamed a member.");
+  assert.equal(renamed.details, "“Sam” → “Sammy”");
+  assert.equal(archived.summary, "Alex archived Sammy.");
+});
+
 test("activity migration is append-only and records mutations atomically", async () => {
   const migration = await readFile(migrationUrl, "utf8");
 

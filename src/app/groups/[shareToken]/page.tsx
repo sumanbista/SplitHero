@@ -138,7 +138,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
     await Promise.all([
     supabase
       .from("members")
-      .select("id, name, user_id")
+      .select("id, name, user_id, is_active, archived_at")
       .eq("group_id", group.id)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true }),
@@ -213,6 +213,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
         )
       : member.name,
   }));
+  const activeMembers = displayedMembers.filter((member) => member.is_active);
   const memberNames = new Map(
     displayedMembers.map((member) => [member.id, member.name]),
   );
@@ -225,7 +226,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
     memberName: getRelatedRecord(invitation.invited_member)?.name ?? null,
   }));
   const availableMembers = displayedMembers
-    .filter((member) => !member.user_id)
+    .filter((member) => member.is_active && !member.user_id)
     .map((member) => ({ id: member.id, name: member.name }));
 
   const memberOrder = new Map(
@@ -286,6 +287,55 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
     ...balance,
     memberName: memberNames.get(balance.memberId) ?? "Unknown member",
   }));
+  const balanceByMemberId = new Map(
+    calculatedBalances.map((balance) => [balance.memberId, balance.balanceCents]),
+  );
+  const memberSummaries = displayedMembers.map((member) => {
+    let totalPaidCents = 0;
+    let totalShareCents = 0;
+    let paidExpenseCount = 0;
+    let participatedExpenseCount = 0;
+    let sentPaymentCents = 0;
+    let receivedPaymentCents = 0;
+
+    for (const expense of expenseRows) {
+      if (expense.paid_by_member_id === member.id) {
+        totalPaidCents += Number(expense.amount_cents);
+        paidExpenseCount += 1;
+      }
+      const participant = expense.participants.find(
+        (share) => share.member_id === member.id,
+      );
+      if (participant) {
+        totalShareCents += Number(participant.share_cents);
+        participatedExpenseCount += 1;
+      }
+    }
+
+    for (const payment of settlementPaymentRows) {
+      if (payment.from_member_id === member.id) {
+        sentPaymentCents += Number(payment.amount_cents);
+      }
+      if (payment.to_member_id === member.id) {
+        receivedPaymentCents += Number(payment.amount_cents);
+      }
+    }
+
+    return {
+      id: member.id,
+      name: member.name,
+      isActive: member.is_active,
+      isAccountLinked:
+        permissions.canManageMembers && Boolean(member.user_id),
+      balanceCents: balanceByMemberId.get(member.id) ?? 0,
+      totalPaidCents,
+      totalShareCents,
+      paidExpenseCount,
+      participatedExpenseCount,
+      sentPaymentCents,
+      receivedPaymentCents,
+    };
+  });
   const settlements: SettlementListItem[] = simplifySettlements(
     calculatedBalances,
   ).map((settlement) => ({
@@ -349,14 +399,14 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
               {group.name}
             </h1>
             <p className="mt-3 text-muted-foreground">
-              {members.length === 0
+              {activeMembers.length === 0
                 ? "Start by adding everyone in the group."
-                : `${members.length} ${members.length === 1 ? "member" : "members"}`}
+                : `${activeMembers.length} active ${activeMembers.length === 1 ? "member" : "members"}`}
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
             {permissions.canContribute ? (
-              <AddExpenseDialog shareToken={shareToken} members={displayedMembers} />
+              <AddExpenseDialog shareToken={shareToken} members={activeMembers} />
             ) : null}
             {permissions.canManageMembers ? (
               <AddMemberDialog shareToken={shareToken} />
@@ -384,7 +434,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
           <div className="flex min-w-0 flex-col gap-10">
             <GroupSummary
               totalSpentCents={totalSpentCents}
-              memberCount={members.length}
+              memberCount={activeMembers.length}
               expenseCount={expenses.length}
               settlementCount={settlements.length}
             />
@@ -423,9 +473,13 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
             >
               <ExpenseList
                 expenses={expenses}
-                hasMembers={members.length > 0}
+                hasMembers={activeMembers.length > 0}
                 hasSettlementPayments={settlementPaymentRows.length > 0}
-                members={displayedMembers}
+                members={displayedMembers.map((member) => ({
+                  id: member.id,
+                  name: member.name,
+                  isActive: member.is_active,
+                }))}
                 canManageExpenses={
                   permissions.canEditExpenses && permissions.canDeleteExpenses
                 }
@@ -474,7 +528,15 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
                 </div>
               </CardHeader>
               <CardContent>
-                <MemberList members={displayedMembers} />
+                <MemberList
+                  members={memberSummaries}
+                  shareToken={shareToken}
+                  canManage={
+                    permissions.canRenameMembers &&
+                    permissions.canArchiveMembers &&
+                    permissions.canRemoveMembers
+                  }
+                />
               </CardContent>
             </Card>
 

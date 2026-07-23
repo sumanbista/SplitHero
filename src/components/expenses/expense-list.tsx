@@ -40,7 +40,7 @@ type ExpenseListProps = {
   expenses: ExpenseListItem[];
   hasMembers: boolean;
   hasSettlementPayments: boolean;
-  members: Array<{ id: string; name: string }>;
+  members: Array<{ id: string; name: string; isActive: boolean }>;
   canManageExpenses: boolean;
   shareToken: string;
 };
@@ -91,7 +91,17 @@ export function ExpenseList({
                   <ExpenseActions
                     expense={expense}
                     hasSettlementPayments={hasSettlementPayments}
-                    members={members}
+                    members={members
+                      .filter(
+                        (member) =>
+                          member.isActive ||
+                          member.id === expense.paidByMemberId ||
+                          expense.participants.some(
+                            (participant) =>
+                              participant.memberId === member.id,
+                          ),
+                      )
+                      .map(({ id, name }) => ({ id, name }))}
                     shareToken={shareToken}
                   />
                 ) : null}

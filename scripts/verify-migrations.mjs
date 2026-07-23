@@ -82,6 +82,9 @@ const serviceRoleFunctions = [
   "consume_security_rate_limit",
   "update_group_access_with_activity",
   "create_member_with_activity",
+  "rename_member_with_activity",
+  "set_member_active_with_activity",
+  "remove_unused_member_with_activity",
   "create_group_invitation_with_activity",
   "decline_group_invitation_with_activity",
 ];

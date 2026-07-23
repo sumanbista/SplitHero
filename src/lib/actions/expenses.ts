@@ -135,6 +135,7 @@ export async function addExpense(
       .from("members")
       .select("id")
       .eq("group_id", access.group.id)
+      .eq("is_active", true)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true });
 

@@ -40,6 +40,9 @@ test("unauthenticated and cross-user sessions cannot access private groups", () 
   assert.deepEqual(getGroupPermissions("private", null), {
     canView: false,
     canManageMembers: false,
+    canRenameMembers: false,
+    canArchiveMembers: false,
+    canRemoveMembers: false,
     canContribute: false,
     canEditExpenses: false,
     canDeleteExpenses: false,
