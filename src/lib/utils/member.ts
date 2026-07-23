@@ -16,5 +16,5 @@ export function getMemberDisplayName(
   memberName: string,
   profileDisplayName: string | null | undefined,
 ) {
-  return profileDisplayName?.trim() || memberName;
+  return memberName.trim() || profileDisplayName?.trim() || "Unnamed member";
 }
