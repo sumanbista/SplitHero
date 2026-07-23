@@ -39,6 +39,10 @@ async function readTree(directory) {
 test("unauthenticated and cross-user sessions cannot access private groups", () => {
   assert.deepEqual(getGroupPermissions("private", null), {
     canView: false,
+    canEditGroup: false,
+    canArchiveGroup: false,
+    canRestoreGroup: false,
+    canDeleteGroup: false,
     canManageMembers: false,
     canRenameMembers: false,
     canArchiveMembers: false,

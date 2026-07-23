@@ -8,6 +8,9 @@ export type SensitiveAction =
   | "expense.update"
   | "group.access.update"
   | "group.create"
+  | "group.delete"
+  | "group.lifecycle.update"
+  | "group.settings.update"
   | "invitation.accept"
   | "invitation.create.group"
   | "invitation.create.user"
@@ -31,6 +34,9 @@ export const sensitiveActionPolicies: Record<SensitiveAction, RateLimitPolicy> =
   "expense.update": { limit: 120, windowSeconds: 60 * 60 },
   "group.access.update": { limit: 20, windowSeconds: 60 * 60 },
   "group.create": { limit: 10, windowSeconds: 60 * 60 },
+  "group.delete": { limit: 5, windowSeconds: 60 * 60 },
+  "group.lifecycle.update": { limit: 20, windowSeconds: 60 * 60 },
+  "group.settings.update": { limit: 60, windowSeconds: 60 * 60 },
   "invitation.accept": { limit: 20, windowSeconds: 60 * 60 },
   "invitation.create.group": { limit: 25, windowSeconds: 24 * 60 * 60 },
   "invitation.create.user": { limit: 10, windowSeconds: 60 * 60 },

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import {
+  Archive,
   HandCoins,
   History,
   Link2,
@@ -28,6 +29,8 @@ import { GroupSummary } from "@/components/groups/group-summary";
 import { GroupActivityList } from "@/components/groups/group-activity-list";
 import { GroupAccessDenied } from "@/components/groups/group-access-denied";
 import { GroupAccessSettings } from "@/components/groups/group-access-settings";
+import { GroupDetailsSettings } from "@/components/groups/group-details-settings";
+import { GroupLifecycleSettings } from "@/components/groups/group-lifecycle-settings";
 import { ShareGroupButton } from "@/components/groups/share-group-button";
 import { AddMemberDialog } from "@/components/members/add-member-dialog";
 import { MemberList } from "@/components/members/member-list";
@@ -39,7 +42,7 @@ import {
   SettlementList,
   type SettlementListItem,
 } from "@/components/settlements/settlement-list";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Card,
   CardContent,
@@ -123,6 +126,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
   }
 
   const { group, user, role, permissions } = access;
+  const isArchived = group.archivedAt !== null;
   const supabase = createAdminClient();
   const invitationsPromise = permissions.canInvite
     ? supabase
@@ -388,6 +392,12 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
         <section className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="flex items-center gap-2 text-sm font-semibold text-primary">
+              {isArchived ? (
+                <>
+                  <Archive className="size-4" aria-hidden="true" />
+                  Archived ·
+                </>
+              ) : null}
               {group.accessMode === "private" ? (
                 <LockKeyhole className="size-4" aria-hidden="true" />
               ) : (
@@ -398,6 +408,11 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
             <h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
               {group.name}
             </h1>
+            {group.description ? (
+              <p className="mt-3 max-w-2xl whitespace-pre-wrap text-base leading-7 text-muted-foreground">
+                {group.description}
+              </p>
+            ) : null}
             <p className="mt-3 text-muted-foreground">
               {activeMembers.length === 0
                 ? "Start by adding everyone in the group."
@@ -414,7 +429,17 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
           </div>
         </section>
 
-        {!permissions.canContribute ? (
+        {isArchived ? (
+          <Alert className="border-primary/25 bg-primary-soft/40">
+            <Archive aria-hidden="true" />
+            <AlertTitle>This group is archived</AlertTitle>
+            <AlertDescription className="text-foreground">
+              Its members, expenses, balances, settlements, invitations, and
+              activity are preserved, but the group is read-only until its
+              owner restores it.
+            </AlertDescription>
+          </Alert>
+        ) : !permissions.canContribute ? (
           <Alert className="border-primary/25 bg-primary-soft/40">
             <AlertDescription className="text-foreground">
               You have viewer access. You can review members, expenses, balances,
@@ -568,6 +593,46 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
                   <GroupAccessSettings
                     shareToken={shareToken}
                     accessMode={group.accessMode}
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {permissions.canEditGroup ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Group details</CardTitle>
+                  <CardDescription>
+                    Update the name and optional description.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <GroupDetailsSettings
+                    shareToken={shareToken}
+                    name={group.name}
+                    description={group.description}
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {permissions.canArchiveGroup ||
+            permissions.canRestoreGroup ||
+            permissions.canDeleteGroup ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Group lifecycle</CardTitle>
+                  <CardDescription>
+                    {isArchived
+                      ? "Restore this group or permanently erase it."
+                      : "Preserve this group as read-only."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <GroupLifecycleSettings
+                    shareToken={shareToken}
+                    groupName={group.name}
+                    isArchived={isArchived}
                   />
                 </CardContent>
               </Card>

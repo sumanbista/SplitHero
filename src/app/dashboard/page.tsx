@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  Archive,
   ArrowRight,
   CalendarDays,
   FolderHeart,
@@ -11,6 +12,7 @@ import {
 
 import { AppLogo } from "@/components/layout/app-logo";
 import { SessionNavigation } from "@/components/auth/session-navigation";
+import { GroupLifecycleSettings } from "@/components/groups/group-lifecycle-settings";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -62,7 +64,11 @@ export const metadata: Metadata = {
 };
 
 type DashboardPageProps = {
-  searchParams: Promise<{ auth?: string; invitation?: string }>;
+  searchParams: Promise<{
+    auth?: string;
+    group?: string;
+    invitation?: string;
+  }>;
 };
 
 function GroupCard({
@@ -77,7 +83,9 @@ function GroupCard({
       <CardHeader>
         <CardTitle>{group.name}</CardTitle>
         <CardDescription>
-          {role.charAt(0).toUpperCase() + role.slice(1)} · Updated {accountDateFormatter.format(new Date(group.updatedAt))}
+          {group.archivedAt ? "Archived" : "Active"} ·{" "}
+          {role.charAt(0).toUpperCase() + role.slice(1)} · Updated{" "}
+          {accountDateFormatter.format(new Date(group.updatedAt))}
         </CardDescription>
         <CardAction>
           <Link
@@ -89,13 +97,21 @@ function GroupCard({
           </Link>
         </CardAction>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-4">
         <Link
           href={`/groups/${group.shareToken}`}
           className="font-medium text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus"
         >
-          View group
+          {group.archivedAt ? "View archived group" : "View group"}
         </Link>
+        {group.archivedAt && role === "owner" ? (
+          <GroupLifecycleSettings
+            shareToken={group.shareToken}
+            groupName={group.name}
+            isArchived
+            compact
+          />
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -106,17 +122,32 @@ function InvitationCard({ invitation }: { invitation: PendingInvitationSummary }
     <Card>
       <CardHeader>
         <CardTitle>{invitation.groupName}</CardTitle>
-        <CardDescription className="capitalize">Invited as {invitation.role}</CardDescription>
+        <CardDescription className="capitalize">
+          Invited as {invitation.role}
+          {invitation.groupArchivedAt ? " · Group archived" : ""}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2 sm:flex-row">
-        <form action={declineInvitation} className="flex-1">
-          <input type="hidden" name="invitationId" value={invitation.id} />
-          <Button type="submit" variant="outline" className="w-full">Decline</Button>
-        </form>
-        <form action={acceptInvitation} className="flex-1">
-          <input type="hidden" name="invitationId" value={invitation.id} />
-          <Button type="submit" className="w-full">Accept</Button>
-        </form>
+      <CardContent>
+        {invitation.groupArchivedAt ? (
+          <p className="text-sm leading-6 text-muted-foreground">
+            This invitation is paused while the group is archived.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <form action={declineInvitation} className="flex-1">
+              <input type="hidden" name="invitationId" value={invitation.id} />
+              <Button type="submit" variant="outline" className="w-full">
+                Decline
+              </Button>
+            </form>
+            <form action={acceptInvitation} className="flex-1">
+              <input type="hidden" name="invitationId" value={invitation.id} />
+              <Button type="submit" className="w-full">
+                Accept
+              </Button>
+            </form>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -127,7 +158,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const user = await requireUser("/dashboard");
   const { profile, ownedGroups, memberGroups, pendingInvitations } =
     await getDashboardData(user.id, user.email);
-  const hasGroups = ownedGroups.length + memberGroups.length > 0;
+  const activeOwnedGroups = ownedGroups.filter((group) => !group.archivedAt);
+  const archivedOwnedGroups = ownedGroups.filter((group) => group.archivedAt);
+  const activeMemberGroups = memberGroups.filter((group) => !group.archivedAt);
+  const archivedMemberGroups = memberGroups.filter((group) => group.archivedAt);
+  const hasActiveGroups =
+    activeOwnedGroups.length + activeMemberGroups.length > 0;
+  const hasArchivedGroups =
+    archivedOwnedGroups.length + archivedMemberGroups.length > 0;
   const displayName = getAccountDisplayName(profile.displayName, user.email);
   const accountCreatedAt = accountDateFormatter.format(new Date(user.created_at));
 
@@ -145,6 +183,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           <Alert className="border-primary/25 bg-primary-soft/40">
             <AlertDescription className="text-foreground">
               {dashboardAuthMessages[params.auth]}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {params.group === "deleted" ? (
+          <Alert className="border-primary/25 bg-primary-soft/40">
+            <AlertDescription className="text-foreground">
+              Group permanently deleted.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -191,12 +236,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               </Link>
             </div>
 
-            {hasGroups ? (
+            {hasActiveGroups ? (
               <div className="grid gap-4 sm:grid-cols-2">
-                {ownedGroups.map((group) => (
+                {activeOwnedGroups.map((group) => (
                   <GroupCard key={group.id} group={group} role="owner" />
                 ))}
-                {memberGroups.map((group) => (
+                {activeMemberGroups.map((group) => (
                   <GroupCard key={group.id} group={group} role={group.role} />
                 ))}
               </div>
@@ -209,10 +254,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   >
                     <FolderHeart aria-hidden="true" />
                   </EmptyMedia>
-                  <EmptyTitle className="text-lg">No connected groups yet</EmptyTitle>
+                  <EmptyTitle className="text-lg">
+                    {hasArchivedGroups
+                      ? "No active groups"
+                      : "No connected groups yet"}
+                  </EmptyTitle>
                   <EmptyDescription>
-                    Groups connected to your account will appear here. Public
-                    share-link groups still work without signing in.
+                    {hasArchivedGroups
+                      ? "Restore an archived group or create a new one."
+                      : "Groups connected to your account will appear here. Public share-link groups still work without signing in."}
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
@@ -225,6 +275,38 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 </EmptyContent>
               </Empty>
             )}
+
+            {hasArchivedGroups ? (
+              <section
+                aria-labelledby="archived-groups-title"
+                className="mt-4 flex flex-col gap-4"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                    <Archive aria-hidden="true" className="size-5" />
+                  </span>
+                  <div>
+                    <h2
+                      id="archived-groups-title"
+                      className="text-xl font-semibold tracking-tight"
+                    >
+                      Archived groups
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Preserved history that is currently read-only.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {archivedOwnedGroups.map((group) => (
+                    <GroupCard key={group.id} group={group} role="owner" />
+                  ))}
+                  {archivedMemberGroups.map((group) => (
+                    <GroupCard key={group.id} group={group} role={group.role} />
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             {pendingInvitations.length > 0 ? (
               <section aria-labelledby="invitations-title" className="mt-4 flex flex-col gap-4">
