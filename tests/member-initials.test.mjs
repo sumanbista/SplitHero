@@ -18,11 +18,22 @@ test("initial generation ignores surrounding and repeated whitespace", () => {
   assert.equal(getMemberInitials("  maya   patel  "), "MP");
 });
 
-test("linked members use their current profile display name", () => {
-  assert.equal(getMemberDisplayName("Original member", "  Current Name  "), "Current Name");
+test("linked members keep their group-local member name", () => {
+  assert.equal(
+    getMemberDisplayName("  Group Name  ", "Current Account Name"),
+    "Group Name",
+  );
 });
 
-test("members fall back to their existing name without a profile display name", () => {
+test("members use their group-local name without a profile display name", () => {
   assert.equal(getMemberDisplayName("Guest member", null), "Guest member");
-  assert.equal(getMemberDisplayName("Guest member", "   "), "Guest member");
+  assert.equal(getMemberDisplayName("  Guest member  ", "   "), "Guest member");
+});
+
+test("member display names safely fall back when group-local data is unavailable", () => {
+  assert.equal(
+    getMemberDisplayName("   ", "  Current Account Name  "),
+    "Current Account Name",
+  );
+  assert.equal(getMemberDisplayName("   ", null), "Unnamed member");
 });
