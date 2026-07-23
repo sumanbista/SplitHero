@@ -13,6 +13,7 @@ export type OwnedGroupSummary = {
   shareToken: string;
   createdAt: string;
   updatedAt: string;
+  archivedAt: string | null;
 };
 
 export type MemberGroupSummary = OwnedGroupSummary & {
@@ -24,6 +25,7 @@ export type PendingInvitationSummary = {
   groupName: string;
   role: "member" | "viewer";
   expiresAt: string;
+  groupArchivedAt: string | null;
 };
 
 export type DashboardData = {
@@ -42,7 +44,7 @@ export async function getDashboardData(
   const invitationsPromise = normalizedEmail
     ? supabase
         .from("group_invitations")
-        .select("id, role, expires_at, groups!inner(name)")
+        .select("id, role, expires_at, groups!inner(name, archived_at)")
         .eq("email", normalizedEmail)
         .eq("status", "pending")
         .gt("expires_at", new Date().toISOString())
@@ -56,12 +58,14 @@ export async function getDashboardData(
       .maybeSingle(),
     supabase
       .from("groups")
-      .select("id, name, share_token, created_at, updated_at")
+      .select("id, name, share_token, created_at, updated_at, archived_at")
       .eq("created_by_user_id", userId)
       .order("updated_at", { ascending: false }),
     supabase
       .from("group_memberships")
-      .select("role, groups!inner(id, name, share_token, created_at, updated_at)")
+      .select(
+        "role, groups!inner(id, name, share_token, created_at, updated_at, archived_at)",
+      )
       .eq("user_id", userId)
       .neq("role", "owner")
       .order("created_at", { ascending: false }),
@@ -91,6 +95,7 @@ export async function getDashboardData(
       shareToken: group.share_token,
       createdAt: group.created_at,
       updatedAt: group.updated_at,
+      archivedAt: group.archived_at,
     })),
     memberGroups: membershipsResult.data.flatMap((membership) => {
       const group = relatedGroup(membership.groups);
@@ -101,6 +106,7 @@ export async function getDashboardData(
             shareToken: group.share_token,
             createdAt: group.created_at,
             updatedAt: group.updated_at,
+            archivedAt: group.archived_at,
             role: membership.role as "member" | "viewer",
           }]
         : [];
@@ -113,6 +119,7 @@ export async function getDashboardData(
             groupName: group.name,
             role: invitation.role as "member" | "viewer",
             expiresAt: invitation.expires_at,
+            groupArchivedAt: group.archived_at,
           }]
         : [];
     }),

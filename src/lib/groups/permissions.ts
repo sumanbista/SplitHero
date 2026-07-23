@@ -3,6 +3,10 @@ export type GroupRole = "owner" | "member" | "viewer";
 
 export type GroupPermissions = {
   canView: boolean;
+  canEditGroup: boolean;
+  canArchiveGroup: boolean;
+  canRestoreGroup: boolean;
+  canDeleteGroup: boolean;
   canManageMembers: boolean;
   canRenameMembers: boolean;
   canArchiveMembers: boolean;
@@ -17,21 +21,30 @@ export type GroupPermissions = {
 export function getGroupPermissions(
   accessMode: GroupAccessMode,
   role: GroupRole | null,
+  isArchived = false,
 ): GroupPermissions {
   const hasPublicLinkAccess = accessMode === "public";
   const isOwner = role === "owner";
   const canContributeAsMember = role === "member";
+  const canMutate = !isArchived;
 
   return {
     canView: hasPublicLinkAccess || role !== null,
-    canManageMembers: hasPublicLinkAccess || isOwner,
-    canRenameMembers: hasPublicLinkAccess || isOwner,
-    canArchiveMembers: hasPublicLinkAccess || isOwner,
-    canRemoveMembers: hasPublicLinkAccess || isOwner,
-    canContribute: hasPublicLinkAccess || isOwner || canContributeAsMember,
-    canEditExpenses: hasPublicLinkAccess || isOwner || canContributeAsMember,
-    canDeleteExpenses: hasPublicLinkAccess || isOwner || canContributeAsMember,
-    canInvite: isOwner,
-    canChangeAccess: isOwner,
+    canEditGroup: canMutate && isOwner,
+    canArchiveGroup: canMutate && isOwner,
+    canRestoreGroup: isArchived && isOwner,
+    canDeleteGroup: isArchived && isOwner,
+    canManageMembers: canMutate && (hasPublicLinkAccess || isOwner),
+    canRenameMembers: canMutate && (hasPublicLinkAccess || isOwner),
+    canArchiveMembers: canMutate && (hasPublicLinkAccess || isOwner),
+    canRemoveMembers: canMutate && (hasPublicLinkAccess || isOwner),
+    canContribute:
+      canMutate && (hasPublicLinkAccess || isOwner || canContributeAsMember),
+    canEditExpenses:
+      canMutate && (hasPublicLinkAccess || isOwner || canContributeAsMember),
+    canDeleteExpenses:
+      canMutate && (hasPublicLinkAccess || isOwner || canContributeAsMember),
+    canInvite: canMutate && isOwner,
+    canChangeAccess: canMutate && isOwner,
   };
 }

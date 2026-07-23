@@ -29,6 +29,10 @@ test("public share links preserve guest viewing and contributions", () => {
 test("private roles enforce owner member and viewer permissions", () => {
   assert.deepEqual(getGroupPermissions("private", "owner"), {
     canView: true,
+    canEditGroup: true,
+    canArchiveGroup: true,
+    canRestoreGroup: false,
+    canDeleteGroup: false,
     canManageMembers: true,
     canRenameMembers: true,
     canArchiveMembers: true,
@@ -41,6 +45,10 @@ test("private roles enforce owner member and viewer permissions", () => {
   });
   assert.deepEqual(getGroupPermissions("private", "member"), {
     canView: true,
+    canEditGroup: false,
+    canArchiveGroup: false,
+    canRestoreGroup: false,
+    canDeleteGroup: false,
     canManageMembers: false,
     canRenameMembers: false,
     canArchiveMembers: false,
@@ -53,6 +61,10 @@ test("private roles enforce owner member and viewer permissions", () => {
   });
   assert.deepEqual(getGroupPermissions("private", "viewer"), {
     canView: true,
+    canEditGroup: false,
+    canArchiveGroup: false,
+    canRestoreGroup: false,
+    canDeleteGroup: false,
     canManageMembers: false,
     canRenameMembers: false,
     canArchiveMembers: false,

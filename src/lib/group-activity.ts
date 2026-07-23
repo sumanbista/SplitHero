@@ -12,7 +12,10 @@ function formatCurrencyFromCents(amountCents: number) {
 export type GroupActivityEventType =
   | "group.created"
   | "group.renamed"
+  | "group.description_updated"
   | "group.access_changed"
+  | "group.archived"
+  | "group.restored"
   | "member.added"
   | "member.renamed"
   | "member.archived"
@@ -119,8 +122,17 @@ export function formatGroupActivityEvent(
       summary = `${actor} renamed the group.`;
       details = `${quoted(getString(metadata, "previousName"), "Untitled")} → ${quoted(getString(metadata, "groupName"), "Untitled")}`;
       break;
+    case "group.description_updated":
+      summary = `${actor} updated the group description.`;
+      break;
     case "group.access_changed":
       summary = `${actor} made the group ${getString(metadata, "accessMode") ?? "private"}.`;
+      break;
+    case "group.archived":
+      summary = `${actor} archived the group.`;
+      break;
+    case "group.restored":
+      summary = `${actor} restored the group.`;
       break;
     case "member.added":
       summary = `${actor} added ${getString(metadata, "memberName") ?? "a member"} to the group.`;
