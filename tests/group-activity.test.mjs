@@ -48,6 +48,22 @@ test("retains a useful snapshot for deleted expenses", () => {
   );
 });
 
+test("formats a share-only expense edit", () => {
+  const activity = formatGroupActivityEvent({
+    id: "split-edit",
+    actorName: "Suman",
+    eventType: "expense.updated",
+    metadata: {
+      changes: ["split"],
+      title: "Dinner",
+    },
+    createdAt: "2026-07-22T12:00:00.000Z",
+  });
+
+  assert.equal(activity.summary, "Suman edited “Dinner”.");
+  assert.equal(activity.details, "Split changed");
+});
+
 test("formats member lifecycle snapshots", () => {
   const renamed = formatGroupActivityEvent({
     id: "3",

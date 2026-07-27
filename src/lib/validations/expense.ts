@@ -1,18 +1,11 @@
 import { z } from "zod";
 
-function parseCurrencyToCents(value: string) {
-  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
-
-  if (!match) {
-    return null;
-  }
-
-  const dollars = Number(match[1]);
-  const cents = Number((match[2] ?? "").padEnd(2, "0"));
-  const totalCents = dollars * 100 + cents;
-
-  return Number.isSafeInteger(totalCents) ? totalCents : null;
-}
+import {
+  calculateExpenseShares,
+  ExpenseSplitError,
+  expenseSplitModes,
+  parseCurrencyToCents,
+} from "../calculations/expense-split.ts";
 
 function isValidExpenseDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
@@ -46,24 +39,56 @@ const optionalExpenseDateSchema = z
   ])
   .transform((value) => value || undefined);
 
-export const createExpenseSchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(1, "Enter an expense title.")
-    .max(100, "Expense titles must be 100 characters or fewer."),
-  amount: expenseAmountSchema,
-  paidByMemberId: z.string().uuid("Select who paid."),
-  participantIds: z
-    .array(z.string().uuid("Select valid participants."))
-    .min(1, "Select at least one participant."),
-  expenseDate: optionalExpenseDateSchema,
-  notes: z
-    .string()
-    .trim()
-    .max(1000, "Notes must be 1,000 characters or fewer.")
-    .transform((value) => value || undefined),
-});
+export const createExpenseSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, "Enter an expense title.")
+      .max(100, "Expense titles must be 100 characters or fewer."),
+    amount: expenseAmountSchema,
+    paidByMemberId: z.string().uuid("Select who paid."),
+    participantIds: z
+      .array(z.string().uuid("Select valid participants."))
+      .min(1, "Select at least one participant."),
+    splitMode: z.enum(expenseSplitModes).default("equal"),
+    participantShares: z
+      .array(
+        z.object({
+          memberId: z.string().uuid(),
+          value: z.string(),
+        }),
+      )
+      .default([]),
+    expenseDate: optionalExpenseDateSchema,
+    notes: z
+      .string()
+      .trim()
+      .max(1000, "Notes must be 1,000 characters or fewer.")
+      .transform((value) => value || undefined),
+  })
+  .superRefine((expense, context) => {
+    try {
+      calculateExpenseShares(
+        expense.amount,
+        expense.participantIds,
+        expense.splitMode,
+        expense.participantShares,
+      );
+    } catch (error) {
+      context.addIssue({
+        code: "custom",
+        message:
+          error instanceof ExpenseSplitError
+            ? error.message
+            : "Enter a valid split.",
+        path:
+          expense.splitMode === "equal"
+            ? ["participantIds"]
+            : ["participantShares"],
+      });
+    }
+  });
 
 export const expenseMutationTargetSchema = z.object({
   expenseId: z.string().uuid(),

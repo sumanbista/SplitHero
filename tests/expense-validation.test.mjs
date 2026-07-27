@@ -61,3 +61,46 @@ test("expense validation rejects impossible dates", () => {
     false,
   );
 });
+
+test("expense validation accepts exact shares that match the total", () => {
+  const result = createExpenseSchema.parse({
+    ...validExpense,
+    amount: "10.00",
+    splitMode: "exact",
+    participantShares: [
+      {
+        memberId: validExpense.participantIds[0],
+        value: "6.25",
+      },
+      {
+        memberId: validExpense.participantIds[1],
+        value: "3.75",
+      },
+    ],
+  });
+
+  assert.equal(result.splitMode, "exact");
+});
+
+test("expense validation rejects percentages that do not total 100%", () => {
+  const result = createExpenseSchema.safeParse({
+    ...validExpense,
+    splitMode: "percentage",
+    participantShares: [
+      {
+        memberId: validExpense.participantIds[0],
+        value: "50",
+      },
+      {
+        memberId: validExpense.participantIds[1],
+        value: "49.99",
+      },
+    ],
+  });
+
+  assert.equal(result.success, false);
+  assert.match(
+    result.error?.flatten().fieldErrors.participantShares?.[0] ?? "",
+    /100%/,
+  );
+});
