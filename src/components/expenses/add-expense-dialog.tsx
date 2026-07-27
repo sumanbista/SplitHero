@@ -3,9 +3,11 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Plus } from "lucide-react";
 
+import {
+  ExpenseSplitFields,
+} from "@/components/expenses/expense-split-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -17,12 +19,9 @@ import {
 } from "@/components/ui/dialog";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
-  FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,6 +35,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { addExpense } from "@/lib/actions/expenses";
 import type { AddExpenseState } from "@/lib/actions/expenses";
+import type { ExpenseSplitMode } from "@/lib/calculations/expense-split";
 
 const initialAddExpenseState: AddExpenseState = {};
 
@@ -55,6 +55,12 @@ export function AddExpenseDialog({
 }: AddExpenseDialogProps) {
   const [open, setOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>();
+  const [amount, setAmount] = useState("");
+  const [splitMode, setSplitMode] = useState<ExpenseSplitMode>("equal");
+  const [participantIds, setParticipantIds] = useState<string[]>([]);
+  const [participantValues, setParticipantValues] = useState<
+    Record<string, string>
+  >({});
   const handledExpenseId = useRef<string | undefined>(undefined);
   const addExpenseForGroup = addExpense.bind(null, shareToken);
   const [state, formAction, pending] = useActionState(
@@ -69,6 +75,10 @@ export function AddExpenseDialog({
 
     handledExpenseId.current = state.expenseId;
     setOpen(false);
+    setAmount("");
+    setSplitMode("equal");
+    setParticipantIds([]);
+    setParticipantValues({});
     setSuccessMessage(`${state.expenseTitle} was added.`);
 
     const timeout = window.setTimeout(() => setSuccessMessage(undefined), 4000);
@@ -80,6 +90,10 @@ export function AddExpenseDialog({
     value: member.id,
   }));
   const participantError = state.fieldErrors?.participantIds;
+  const splitError =
+    state.fieldErrors?.participantShares ??
+    state.fieldErrors?.splitMode ??
+    participantError;
 
   return (
     <div className="flex flex-col items-stretch gap-3 sm:items-end">
@@ -126,6 +140,8 @@ export function AddExpenseDialog({
                   <Input
                     id="expense-amount"
                     name="amount"
+                    value={amount}
+                    onChange={(event) => setAmount(event.target.value)}
                     inputMode="decimal"
                     placeholder="90.00"
                     required
@@ -167,32 +183,18 @@ export function AddExpenseDialog({
                 </Field>
               </div>
 
-              <FieldSet data-invalid={Boolean(participantError)}>
-                <FieldLegend>Split between</FieldLegend>
-                <FieldDescription>
-                  The amount will be split equally between selected members.
-                </FieldDescription>
-                <FieldGroup data-slot="checkbox-group" className="gap-3">
-                  {members.map((member) => (
-                    <Field
-                      key={member.id}
-                      orientation="horizontal"
-                      data-invalid={Boolean(participantError)}
-                    >
-                      <Checkbox
-                        id={`participant-${member.id}`}
-                        name="participantIds"
-                        value={member.id}
-                        aria-invalid={Boolean(participantError)}
-                      />
-                      <FieldLabel htmlFor={`participant-${member.id}`}>
-                        {member.name}
-                      </FieldLabel>
-                    </Field>
-                  ))}
-                </FieldGroup>
-                <FieldError>{participantError}</FieldError>
-              </FieldSet>
+              <ExpenseSplitFields
+                amount={amount}
+                error={splitError}
+                idPrefix="add-expense"
+                members={members}
+                participantIds={participantIds}
+                participantValues={participantValues}
+                splitMode={splitMode}
+                onParticipantIdsChange={setParticipantIds}
+                onParticipantValuesChange={setParticipantValues}
+                onSplitModeChange={setSplitMode}
+              />
 
               <Field data-invalid={Boolean(state.fieldErrors?.expenseDate)}>
                 <FieldLabel htmlFor="expense-date">

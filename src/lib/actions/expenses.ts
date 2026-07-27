@@ -4,7 +4,11 @@ import "server-only";
 
 import { revalidatePath } from "next/cache";
 
-import { calculateEqualShares } from "@/lib/calculations/equal-split";
+import { calculateExpenseShares } from "@/lib/calculations/expense-split";
+import type {
+  ExpenseSplitMode,
+  ParticipantSplitInput,
+} from "@/lib/calculations/expense-split";
 import { getGroupAccess } from "@/lib/groups/access";
 import { writeSecurityAuditEvent } from "@/lib/security/audit";
 import {
@@ -25,6 +29,8 @@ export type ExpenseFieldErrors = Partial<
     | "amount"
     | "paidByMemberId"
     | "participantIds"
+    | "splitMode"
+    | "participantShares"
     | "expenseDate"
     | "notes",
     string
@@ -36,6 +42,8 @@ export type ExpenseFormValues = {
   amount: string;
   paidByMemberId: string;
   participantIds: string[];
+  splitMode: ExpenseSplitMode | string;
+  participantShares: ParticipantSplitInput[];
   expenseDate: string;
   notes: string;
 };
@@ -63,13 +71,20 @@ function getString(formData: FormData, key: string) {
 }
 
 function getFormValues(formData: FormData): ExpenseFormValues {
+  const participantIds = formData
+    .getAll("participantIds")
+    .filter((value): value is string => typeof value === "string");
+
   return {
     title: getString(formData, "title"),
     amount: getString(formData, "amount"),
     paidByMemberId: getString(formData, "paidByMemberId"),
-    participantIds: formData
-      .getAll("participantIds")
-      .filter((value): value is string => typeof value === "string"),
+    participantIds,
+    splitMode: getString(formData, "splitMode") || "equal",
+    participantShares: participantIds.map((memberId) => ({
+      memberId,
+      value: getString(formData, `participantShare-${memberId}`),
+    })),
     expenseDate: getString(formData, "expenseDate"),
     notes: getString(formData, "notes"),
   };
@@ -83,6 +98,8 @@ function getFieldErrors(
     amount: fieldErrors.amount?.[0],
     paidByMemberId: fieldErrors.paidByMemberId?.[0],
     participantIds: fieldErrors.participantIds?.[0],
+    splitMode: fieldErrors.splitMode?.[0],
+    participantShares: fieldErrors.participantShares?.[0],
     expenseDate: fieldErrors.expenseDate?.[0],
     notes: fieldErrors.notes?.[0],
   };
@@ -172,9 +189,11 @@ export async function addExpense(
       };
     }
 
-    const shares = calculateEqualShares(
+    const shares = calculateExpenseShares(
       input.amount,
       orderedParticipantIds,
+      input.splitMode,
+      input.participantShares,
     );
     const { data: expenseId, error: transactionError } = await supabase.rpc(
       "create_expense_with_participants",
@@ -185,6 +204,11 @@ export async function addExpense(
         p_paid_by_member_id: input.paidByMemberId,
         p_participant_ids: shares.map((share) => share.memberId),
         p_participant_shares: shares.map((share) => share.shareCents),
+        p_split_mode: input.splitMode,
+        p_participant_percentages:
+          input.splitMode === "percentage"
+            ? shares.map((share) => share.percentageBasisPoints)
+            : null,
         p_expense_date: input.expenseDate ?? null,
         p_notes: input.notes ?? null,
         p_actor_user_id: access.user?.id ?? null,
@@ -312,7 +336,12 @@ export async function updateExpense(
       };
     }
 
-    const shares = calculateEqualShares(input.amount, orderedParticipantIds);
+    const shares = calculateExpenseShares(
+      input.amount,
+      orderedParticipantIds,
+      input.splitMode,
+      input.participantShares,
+    );
     const { data: result, error: transactionError } = await supabase.rpc(
       "update_expense_with_participants",
       {
@@ -324,6 +353,11 @@ export async function updateExpense(
         p_paid_by_member_id: input.paidByMemberId,
         p_participant_ids: shares.map((share) => share.memberId),
         p_participant_shares: shares.map((share) => share.shareCents),
+        p_split_mode: input.splitMode,
+        p_participant_percentages:
+          input.splitMode === "percentage"
+            ? shares.map((share) => share.percentageBasisPoints)
+            : null,
         p_expense_date: input.expenseDate ?? null,
         p_notes: input.notes ?? null,
         p_actor_user_id: access.user?.id ?? null,

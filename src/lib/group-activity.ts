@@ -100,6 +100,7 @@ function expenseUpdateDetails(metadata: Record<string, unknown>) {
     );
   }
   if (changes.has("participants")) details.push("Participants changed");
+  if (changes.has("split")) details.push("Split changed");
   if (changes.has("date")) details.push("Date changed");
   if (changes.has("notes")) details.push("Notes changed");
 

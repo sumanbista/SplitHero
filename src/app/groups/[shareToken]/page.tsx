@@ -149,7 +149,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
     supabase
       .from("expenses")
       .select(
-        "id, title, amount_cents, paid_by_member_id, expense_date, notes, updated_at, paid_by:members!expenses_paid_by_member_id_fkey(id, name), participants:expense_participants(member_id, share_cents, member:members(id, name))",
+        "id, title, amount_cents, paid_by_member_id, split_mode, expense_date, notes, updated_at, paid_by:members!expenses_paid_by_member_id_fkey(id, name), participants:expense_participants(member_id, share_cents, percentage_basis_points, member:members(id, name))",
       )
       .eq("group_id", group.id)
       .order("expense_date", { ascending: false })
@@ -246,6 +246,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
       expenseDate: expense.expense_date,
       notes: expense.notes ?? "",
       paidByMemberId: expense.paid_by_member_id,
+      splitMode: expense.split_mode,
       paidByName: paidBy
         ? memberNames.get(paidBy.id) ?? paidBy.name
         : "Unknown member",
@@ -260,6 +261,10 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
                   memberId: member.id,
                   memberName: memberNames.get(member.id) ?? member.name,
                   shareCents: Number(participant.share_cents),
+                  percentageBasisPoints:
+                    participant.percentage_basis_points === null
+                      ? null
+                      : Number(participant.percentage_basis_points),
                 },
               ]
             : [];

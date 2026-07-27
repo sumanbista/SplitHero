@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/empty";
 import { formatCurrencyFromCents } from "@/lib/utils/currency";
 import { formatExpenseDate } from "@/lib/utils/date";
+import type { ExpenseSplitMode } from "@/lib/calculations/expense-split";
 
 export type ExpenseListItem = {
   id: string;
@@ -28,11 +29,13 @@ export type ExpenseListItem = {
   notes: string;
   paidByMemberId: string;
   paidByName: string;
+  splitMode: ExpenseSplitMode;
   updatedAt: string;
   participants: Array<{
     memberId: string;
     memberName: string;
     shareCents: number;
+    percentageBasisPoints: number | null;
   }>;
 };
 

@@ -3,9 +3,11 @@
 import { useActionState, useEffect, useState } from "react";
 import { CheckCircle2, MoreHorizontal, Pencil, Trash2, TriangleAlert } from "lucide-react";
 
+import {
+  ExpenseSplitFields,
+} from "@/components/expenses/expense-split-fields";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogClose,
@@ -24,12 +26,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
-  FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -48,6 +47,11 @@ import {
   type UpdateExpenseState,
 } from "@/lib/actions/expenses";
 import type { ExpenseListItem } from "@/components/expenses/expense-list";
+import {
+  calculateExpenseShares,
+  parseCurrencyToCents,
+  type ExpenseSplitMode,
+} from "@/lib/calculations/expense-split";
 
 type Member = {
   id: string;
@@ -68,23 +72,20 @@ function formatCurrencyInput(amountCents: number) {
   return (amountCents / 100).toFixed(2);
 }
 
-function parseCurrencyInput(value: string) {
-  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
-
-  if (!match) {
-    return null;
-  }
-
-  return Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"));
-}
-
-function haveSameMembers(left: string[], right: string[]) {
+function haveSameShares(
+  left: Array<{ memberId: string; shareCents: number }>,
+  right: Array<{ memberId: string; shareCents: number }>,
+) {
   if (left.length !== right.length) {
     return false;
   }
 
-  const rightIds = new Set(right);
-  return left.every((memberId) => rightIds.has(memberId));
+  const rightShares = new Map(
+    right.map((share) => [share.memberId, share.shareCents]),
+  );
+  return left.every(
+    (share) => rightShares.get(share.memberId) === share.shareCents,
+  );
 }
 
 function BalanceWarning({ hasSettlementPayments }: { hasSettlementPayments: boolean }) {
@@ -116,15 +117,51 @@ function EditExpenseDialog({
     (participant) => participant.memberId,
   );
   const initialAmount = formatCurrencyInput(expense.amountCents);
+  const initialParticipantValues = Object.fromEntries(
+    expense.participants.map((participant) => [
+      participant.memberId,
+      expense.splitMode === "percentage"
+        ? ((participant.percentageBasisPoints ?? 0) / 100).toFixed(2)
+        : formatCurrencyInput(participant.shareCents),
+    ]),
+  );
   const [amount, setAmount] = useState(initialAmount);
   const [payerId, setPayerId] = useState(expense.paidByMemberId);
   const [participantIds, setParticipantIds] = useState(initialParticipantIds);
+  const [splitMode, setSplitMode] = useState<ExpenseSplitMode>(
+    expense.splitMode,
+  );
+  const [participantValues, setParticipantValues] = useState(
+    initialParticipantValues,
+  );
   const action = updateExpense.bind(null, shareToken);
   const [state, formAction, pending] = useActionState(action, initialUpdateState);
+  const currentAmountCents = parseCurrencyToCents(amount);
+  let currentShares: Array<{ memberId: string; shareCents: number }> | null =
+    null;
+
+  if (currentAmountCents !== null && currentAmountCents > 0) {
+    try {
+      currentShares = calculateExpenseShares(
+        currentAmountCents,
+        participantIds,
+        splitMode,
+        participantIds.map((memberId) => ({
+          memberId,
+          value: participantValues[memberId] ?? "",
+        })),
+      );
+    } catch {
+      currentShares = null;
+    }
+  }
+
   const financialChanged =
-    parseCurrencyInput(amount) !== expense.amountCents ||
+    currentAmountCents !== expense.amountCents ||
     payerId !== expense.paidByMemberId ||
-    !haveSameMembers(participantIds, initialParticipantIds);
+    splitMode !== expense.splitMode ||
+    currentShares === null ||
+    !haveSameShares(currentShares, expense.participants);
   const payerItems = members.map((member) => ({
     label: member.name,
     value: member.id,
@@ -138,14 +175,6 @@ function EditExpenseDialog({
     onSuccess(`${state.expenseTitle ?? "Expense"} was updated.`);
     onOpenChange(false);
   }, [onOpenChange, onSuccess, state.expenseTitle, state.updatedExpenseId]);
-
-  function toggleParticipant(memberId: string, checked: boolean) {
-    setParticipantIds((currentIds) =>
-      checked
-        ? [...currentIds, memberId]
-        : currentIds.filter((currentId) => currentId !== memberId),
-    );
-  }
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
@@ -231,42 +260,22 @@ function EditExpenseDialog({
               </Field>
             </div>
 
-            <FieldSet data-invalid={Boolean(state.fieldErrors?.participantIds)}>
-              <FieldLegend>Split between</FieldLegend>
-              <FieldDescription>
-                The amount will be split equally between selected members.
-              </FieldDescription>
-              <FieldGroup data-slot="checkbox-group" className="gap-3">
-                {members.map((member) => {
-                  const checked = participantIds.includes(member.id);
-
-                  return (
-                    <Field
-                      key={member.id}
-                      orientation="horizontal"
-                      data-invalid={Boolean(state.fieldErrors?.participantIds)}
-                    >
-                      <Checkbox
-                        id={`edit-participant-${expense.id}-${member.id}`}
-                        name="participantIds"
-                        value={member.id}
-                        checked={checked}
-                        onCheckedChange={(nextChecked) =>
-                          toggleParticipant(member.id, nextChecked)
-                        }
-                        aria-invalid={Boolean(state.fieldErrors?.participantIds)}
-                      />
-                      <FieldLabel
-                        htmlFor={`edit-participant-${expense.id}-${member.id}`}
-                      >
-                        {member.name}
-                      </FieldLabel>
-                    </Field>
-                  );
-                })}
-              </FieldGroup>
-              <FieldError>{state.fieldErrors?.participantIds}</FieldError>
-            </FieldSet>
+            <ExpenseSplitFields
+              amount={amount}
+              error={
+                state.fieldErrors?.participantShares ??
+                state.fieldErrors?.splitMode ??
+                state.fieldErrors?.participantIds
+              }
+              idPrefix={`edit-expense-${expense.id}`}
+              members={members}
+              participantIds={participantIds}
+              participantValues={participantValues}
+              splitMode={splitMode}
+              onParticipantIdsChange={setParticipantIds}
+              onParticipantValuesChange={setParticipantValues}
+              onSplitModeChange={setSplitMode}
+            />
 
             <Field data-invalid={Boolean(state.fieldErrors?.expenseDate)}>
               <FieldLabel htmlFor={`expense-date-${expense.id}`}>Date</FieldLabel>
