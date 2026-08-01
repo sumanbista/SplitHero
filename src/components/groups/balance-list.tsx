@@ -1,7 +1,8 @@
+import { Fragment } from "react";
 import { CircleCheck, Scale } from "lucide-react";
 
 import { MemberAvatar } from "@/components/members/member-avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -9,6 +10,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Separator } from "@/components/ui/separator";
 import type { MemberBalance } from "@/lib/calculations/balances";
 import { cn } from "@/lib/utils";
 import { formatCurrencyFromCents } from "@/lib/utils/currency";
@@ -42,41 +44,48 @@ export function BalanceList({ balances, hasExpenses }: BalanceListProps) {
   }
 
   return (
-    <ul aria-label="Member balances" className="grid gap-3 sm:grid-cols-2">
-      {balances.map((balance) => (
-        <li key={balance.memberId}>
-          <Card size="sm" className="h-full">
-            <CardHeader className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
-              <MemberAvatar name={balance.memberName} />
-              <CardTitle className="truncate">{balance.memberName}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p
-                className={cn(
-                  "text-sm font-medium",
-                  balance.state === "receives" && "text-primary",
-                  balance.state === "owes" && "text-warning",
-                  balance.state === "settled" && "text-success",
-                )}
-              >
-                {balance.state === "receives" ? "Gets back" : null}
-                {balance.state === "owes" ? "Owes" : null}
-                {balance.state === "settled" ? (
-                  <span className="inline-flex items-center gap-1.5">
-                    <CircleCheck className="size-4" aria-hidden="true" />
-                    Settled up
-                  </span>
-                ) : null}
-              </p>
-              {balance.state !== "settled" ? (
-                <p className="mt-2 text-xl font-semibold tabular-nums">
-                  {formatCurrencyFromCents(Math.abs(balance.balanceCents))}
-                </p>
-              ) : null}
-            </CardContent>
-          </Card>
-        </li>
-      ))}
-    </ul>
+    <Card className="py-0">
+      <CardContent className="px-0">
+        <ul aria-label="Member balances" className="flex flex-col">
+          {balances.map((balance, index) => (
+            <Fragment key={balance.memberId}>
+              {index > 0 ? <Separator /> : null}
+              <li className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                <MemberAvatar name={balance.memberName} />
+                <CardTitle className="min-w-0 flex-1 truncate">
+                  {balance.memberName}
+                </CardTitle>
+                <div className="shrink-0 text-right">
+                  <p
+                    className={cn(
+                      "text-xs font-medium",
+                      balance.state === "receives" && "text-primary",
+                      balance.state === "owes" && "text-warning",
+                      balance.state === "settled" && "text-success",
+                    )}
+                  >
+                    {balance.state === "receives" ? "Gets back" : null}
+                    {balance.state === "owes" ? "Owes" : null}
+                    {balance.state === "settled" ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <CircleCheck className="size-4" aria-hidden="true" />
+                        Settled up
+                      </span>
+                    ) : null}
+                  </p>
+                  {balance.state !== "settled" ? (
+                    <p className="mt-0.5 font-semibold tabular-nums">
+                      {formatCurrencyFromCents(
+                        Math.abs(balance.balanceCents),
+                      )}
+                    </p>
+                  ) : null}
+                </div>
+              </li>
+            </Fragment>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   Archive,
+  ArrowLeft,
   HandCoins,
   History,
   Link2,
   LockKeyhole,
+  Mail,
   ReceiptText,
   Scale,
+  Settings2,
   Users,
   Activity as ActivityIcon,
 } from "lucide-react";
@@ -26,6 +30,11 @@ import {
   type BalanceListItem,
 } from "@/components/groups/balance-list";
 import { GroupSummary } from "@/components/groups/group-summary";
+import { GroupDashboard } from "@/components/groups/group-dashboard";
+import {
+  GroupSettingsPanel,
+  type GroupSettingsItem,
+} from "@/components/groups/group-settings-panel";
 import { GroupActivityList } from "@/components/groups/group-activity-list";
 import { GroupAccessDenied } from "@/components/groups/group-access-denied";
 import { GroupAccessSettings } from "@/components/groups/group-access-settings";
@@ -43,6 +52,7 @@ import {
   type SettlementListItem,
 } from "@/components/settlements/settlement-list";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -58,6 +68,7 @@ import {
   type GroupActivityEventType,
 } from "@/lib/group-activity";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cn } from "@/lib/utils";
 import { getMemberDisplayName } from "@/lib/utils/member";
 
 type GroupPageProps = {
@@ -377,6 +388,87 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
       createdAt: activity.created_at,
     }),
   );
+  const groupSettingsItems: GroupSettingsItem[] = [];
+
+  if (permissions.canInvite) {
+    groupSettingsItems.push({
+      id: "invitations",
+      title: "Invitations",
+      description: "Connect people to this group.",
+      icon: <Mail aria-hidden="true" />,
+      content: (
+        <InvitationManager
+          shareToken={shareToken}
+          members={availableMembers}
+          pendingInvitations={pendingInvitations}
+        />
+      ),
+    });
+  }
+
+  if (permissions.canChangeAccess) {
+    groupSettingsItems.push({
+      id: "group-access",
+      title: "Group access",
+      description: "Choose who can open this group.",
+      icon: <LockKeyhole aria-hidden="true" />,
+      content: (
+        <GroupAccessSettings
+          shareToken={shareToken}
+          accessMode={group.accessMode}
+        />
+      ),
+    });
+  }
+
+  if (permissions.canEditGroup) {
+    groupSettingsItems.push({
+      id: "group-details",
+      title: "Group details",
+      description: "Update the name and description.",
+      icon: <Settings2 aria-hidden="true" />,
+      content: (
+        <GroupDetailsSettings
+          shareToken={shareToken}
+          name={group.name}
+          description={group.description}
+        />
+      ),
+    });
+  }
+
+  if (
+    permissions.canArchiveGroup ||
+    permissions.canRestoreGroup ||
+    permissions.canDeleteGroup
+  ) {
+    groupSettingsItems.push({
+      id: "group-lifecycle",
+      title: "Group lifecycle",
+      description: isArchived
+        ? "Restore or permanently erase this group."
+        : "Archive this group as read-only.",
+      icon: <Archive aria-hidden="true" />,
+      content: (
+        <GroupLifecycleSettings
+          shareToken={shareToken}
+          groupName={group.name}
+          isArchived={isArchived}
+        />
+      ),
+    });
+  }
+
+  groupSettingsItems.push({
+    id: "group-link",
+    title: group.accessMode === "private" ? "Group link" : "Share group",
+    description:
+      group.accessMode === "private"
+        ? "Only invited members can open this link."
+        : "Anyone with this link can view and contribute.",
+    icon: <Link2 aria-hidden="true" />,
+    content: <ShareGroupButton />,
+  });
 
   return (
     <div className="min-h-dvh">
@@ -386,7 +478,19 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
           <SessionNavigation user={user} />
         </nav>
       </header>
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pt-8 pb-20 sm:px-8 sm:pt-12">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 pt-4 pb-20 sm:gap-8 sm:px-8 sm:pt-12">
+        {user ? (
+          <Link
+            href="/dashboard"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "lg" }),
+              "-ml-2 w-fit",
+            )}
+          >
+            <ArrowLeft data-icon="inline-start" aria-hidden="true" />
+            Back to groups
+          </Link>
+        ) : null}
         {pageState.invitation === "accepted" ? (
           <Alert className="border-primary/25 bg-primary-soft/40">
             <AlertDescription className="text-foreground">
@@ -410,7 +514,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
               )}
               {group.accessMode === "private" ? "Private group" : "Public share-link group"}
             </p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight sm:text-5xl">
+            <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-5xl">
               {group.name}
             </h1>
             {group.description ? (
@@ -424,14 +528,26 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
                 : `${activeMembers.length} active ${activeMembers.length === 1 ? "member" : "members"}`}
             </p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-            {permissions.canContribute ? (
-              <AddExpenseDialog shareToken={shareToken} members={activeMembers} />
-            ) : null}
-            {permissions.canManageMembers ? (
-              <AddMemberDialog shareToken={shareToken} />
-            ) : null}
-          </div>
+          {permissions.canContribute || permissions.canManageMembers ? (
+            <div
+              className={cn(
+                "fixed inset-x-0 bottom-0 z-20 grid gap-2 border-t bg-card/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(23,33,29,0.08)] backdrop-blur-sm [&_[data-slot=button]]:h-12 [&_[data-slot=button]]:w-full [&_[data-slot=button]]:text-sm sm:static sm:flex sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-none sm:[&_[data-slot=button]]:h-9 sm:[&_[data-slot=button]]:w-auto",
+                permissions.canContribute && permissions.canManageMembers
+                  ? "grid-cols-2"
+                  : "grid-cols-1",
+              )}
+            >
+              {permissions.canContribute ? (
+                <AddExpenseDialog
+                  shareToken={shareToken}
+                  members={activeMembers}
+                />
+              ) : null}
+              {permissions.canManageMembers ? (
+                <AddMemberDialog shareToken={shareToken} />
+              ) : null}
+            </div>
+          ) : null}
         </section>
 
         {isArchived ? (
@@ -460,206 +576,132 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
           </Alert>
         ) : null}
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="flex min-w-0 flex-col gap-10">
-            <GroupSummary
-              totalSpentCents={totalSpentCents}
-              memberCount={activeMembers.length}
-              expenseCount={expenses.length}
-              settlementCount={settlements.length}
-            />
-
-            <DashboardSection
-              id="settlements-title"
-              title="Settle up"
-              description="Recommended payments to settle the group."
-              icon={<HandCoins aria-hidden="true" />}
-            >
-              <SettlementList
-                shareToken={shareToken}
-                settlements={settlements}
-                hasExpenses={expenses.length > 0}
-                canRecord={permissions.canContribute}
-              />
-            </DashboardSection>
-
-            <DashboardSection
-              id="balances-title"
-              title="Balances"
-              description="What each person owes or gets back."
-              icon={<Scale aria-hidden="true" />}
-            >
-              <BalanceList
-                balances={balances}
-                hasExpenses={expenses.length > 0}
-              />
-            </DashboardSection>
-
-            <DashboardSection
-              id="expenses-title"
-              title="Expenses"
-              description="Shared costs recorded by this group."
-              icon={<ReceiptText aria-hidden="true" />}
-            >
-              <ExpenseList
-                expenses={expenses}
-                hasMembers={activeMembers.length > 0}
-                hasSettlementPayments={settlementPaymentRows.length > 0}
-                members={displayedMembers.map((member) => ({
-                  id: member.id,
-                  name: member.name,
-                  isActive: member.is_active,
-                }))}
-                canManageExpenses={
-                  permissions.canEditExpenses && permissions.canDeleteExpenses
-                }
-                shareToken={shareToken}
-              />
-            </DashboardSection>
-
-            <DashboardSection
-              id="activity-title"
-              title="Recent activity"
-              description="Important changes made within this group."
-              icon={<ActivityIcon aria-hidden="true" />}
-            >
-              <Card>
-                <CardContent>
-                  <GroupActivityList activities={activities} />
-                </CardContent>
-              </Card>
-            </DashboardSection>
-
-            <DashboardSection
-              id="payment-history-title"
-              title="Payment history"
-              description="Settlement payments recorded by this group."
-              icon={<History aria-hidden="true" />}
-            >
-              <Card>
-                <CardContent>
-                  <SettlementHistory payments={settlementHistory} />
-                </CardContent>
-              </Card>
-            </DashboardSection>
-          </div>
-
-          <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-6 lg:self-start">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                    <Users className="size-5" />
-                  </span>
-                  <div>
-                    <CardTitle>Members</CardTitle>
-                    <CardDescription>Everyone in this group.</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <MemberList
-                  members={memberSummaries}
-                  shareToken={shareToken}
-                  canManage={
-                    permissions.canRenameMembers &&
-                    permissions.canArchiveMembers &&
-                    permissions.canRemoveMembers
-                  }
+        <GroupDashboard
+          hasActions={permissions.canContribute || permissions.canManageMembers}
+          overview={
+            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="flex min-w-0 flex-col gap-8">
+                <GroupSummary
+                  totalSpentCents={totalSpentCents}
+                  memberCount={activeMembers.length}
+                  expenseCount={expenses.length}
+                  settlementCount={settlements.length}
                 />
-              </CardContent>
-            </Card>
 
-            {permissions.canInvite ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Invitations</CardTitle>
-                  <CardDescription>Connect people to this group.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <InvitationManager
+                <DashboardSection
+                  id="settlements-title"
+                  title="Settle up"
+                  description="Recommended payments to settle the group."
+                  icon={<HandCoins aria-hidden="true" />}
+                >
+                  <SettlementList
                     shareToken={shareToken}
-                    members={availableMembers}
-                    pendingInvitations={pendingInvitations}
+                    settlements={settlements}
+                    hasExpenses={expenses.length > 0}
+                    canRecord={permissions.canContribute}
                   />
-                </CardContent>
-              </Card>
-            ) : null}
+                </DashboardSection>
 
-            {permissions.canChangeAccess ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Group access</CardTitle>
-                  <CardDescription>
-                    Choose between guest-friendly sharing and invited access.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <GroupAccessSettings
-                    shareToken={shareToken}
-                    accessMode={group.accessMode}
+                <DashboardSection
+                  id="balances-title"
+                  title="Balances"
+                  description="What each person owes or gets back."
+                  icon={<Scale aria-hidden="true" />}
+                >
+                  <BalanceList
+                    balances={balances}
+                    hasExpenses={expenses.length > 0}
                   />
-                </CardContent>
-              </Card>
-            ) : null}
+                </DashboardSection>
+              </div>
 
-            {permissions.canEditGroup ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Group details</CardTitle>
-                  <CardDescription>
-                    Update the name and optional description.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <GroupDetailsSettings
-                    shareToken={shareToken}
-                    name={group.name}
-                    description={group.description}
-                  />
-                </CardContent>
-              </Card>
-            ) : null}
-
-            {permissions.canArchiveGroup ||
-            permissions.canRestoreGroup ||
-            permissions.canDeleteGroup ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Group lifecycle</CardTitle>
-                  <CardDescription>
-                    {isArchived
-                      ? "Restore this group or permanently erase it."
-                      : "Preserve this group as read-only."}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <GroupLifecycleSettings
-                    shareToken={shareToken}
-                    groupName={group.name}
-                    isArchived={isArchived}
-                  />
-                </CardContent>
-              </Card>
-            ) : null}
-
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  {group.accessMode === "private" ? "Group link" : "Share group"}
-                </CardTitle>
-                <CardDescription>
-                  {group.accessMode === "private"
-                    ? "Only invited members can open this link."
-                    : "Anyone with this link can view and contribute."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ShareGroupButton />
-              </CardContent>
-            </Card>
-          </aside>
-        </div>
+              <aside className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-20 lg:self-start">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                        <Users className="size-5" />
+                      </span>
+                      <div>
+                        <CardTitle>Members</CardTitle>
+                        <CardDescription>Everyone in this group.</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <MemberList
+                      members={memberSummaries}
+                      shareToken={shareToken}
+                      canManage={
+                        permissions.canRenameMembers &&
+                        permissions.canArchiveMembers &&
+                        permissions.canRemoveMembers
+                      }
+                    />
+                  </CardContent>
+                </Card>
+                <GroupSettingsPanel items={groupSettingsItems} />
+              </aside>
+            </div>
+          }
+          expenses={
+            <div className="mx-auto max-w-3xl">
+              <DashboardSection
+                id="expenses-title"
+                title="Expenses"
+                description="Shared costs recorded by this group."
+                icon={<ReceiptText aria-hidden="true" />}
+              >
+                <ExpenseList
+                  expenses={expenses}
+                  hasMembers={activeMembers.length > 0}
+                  hasSettlementPayments={settlementPaymentRows.length > 0}
+                  members={displayedMembers.map((member) => ({
+                    id: member.id,
+                    name: member.name,
+                    isActive: member.is_active,
+                  }))}
+                  canManageExpenses={
+                    permissions.canEditExpenses && permissions.canDeleteExpenses
+                  }
+                  shareToken={shareToken}
+                />
+              </DashboardSection>
+            </div>
+          }
+          activity={
+            <div className="mx-auto max-w-3xl">
+              <DashboardSection
+                id="activity-title"
+                title="Recent activity"
+                description="Important changes made within this group."
+                icon={<ActivityIcon aria-hidden="true" />}
+              >
+                <Card>
+                  <CardContent>
+                    <GroupActivityList activities={activities} />
+                  </CardContent>
+                </Card>
+              </DashboardSection>
+            </div>
+          }
+          payments={
+            <div className="mx-auto max-w-3xl">
+              <DashboardSection
+                id="payment-history-title"
+                title="Payment history"
+                description="Settlement payments recorded by this group."
+                icon={<History aria-hidden="true" />}
+              >
+                <Card>
+                  <CardContent>
+                    <SettlementHistory payments={settlementHistory} />
+                  </CardContent>
+                </Card>
+              </DashboardSection>
+            </div>
+          }
+        />
       </main>
     </div>
   );

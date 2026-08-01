@@ -3,11 +3,10 @@ import { CircleCheck, HandCoins, ReceiptText, Users, WalletCards } from "lucide-
 
 import {
   Card,
-  CardContent,
   CardDescription,
-  CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { formatCurrencyFromCents } from "@/lib/utils/currency";
 
 type GroupSummaryProps = {
@@ -21,23 +20,32 @@ type SummaryCardProps = {
   label: string;
   value: string;
   icon: ReactNode;
+  compactValue?: boolean;
 };
 
-function SummaryCard({ label, value, icon }: SummaryCardProps) {
+function SummaryCard({
+  label,
+  value,
+  icon,
+  compactValue = false,
+}: SummaryCardProps) {
   return (
-    <Card size="sm" className="min-h-32">
-      <CardHeader className="grid grid-cols-[1fr_auto] items-start gap-3">
-        <CardDescription>{label}</CardDescription>
-        <span className="flex size-9 items-center justify-center rounded-lg bg-primary-soft text-primary [&_svg]:size-4">
-          {icon}
-        </span>
-      </CardHeader>
-      <CardContent>
-        <CardTitle className="text-xl font-semibold tabular-nums sm:text-2xl">
+    <div className="flex min-w-0 items-center gap-3 bg-card px-4 py-4 sm:px-5">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary [&_svg]:size-4">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <CardDescription className="text-xs">{label}</CardDescription>
+        <CardTitle
+          className={cn(
+            "mt-1 text-base font-semibold tabular-nums sm:text-lg",
+            compactValue && "text-sm leading-tight sm:text-sm",
+          )}
+        >
           {value}
         </CardTitle>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -59,7 +67,7 @@ export function GroupSummary({
       <h2 id="group-summary-title" className="sr-only">
         Group summary
       </h2>
-      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+      <Card className="grid grid-cols-2 gap-px bg-border p-0 sm:grid-cols-4">
         <SummaryCard
           label="Total spent"
           value={formatCurrencyFromCents(totalSpentCents)}
@@ -78,6 +86,7 @@ export function GroupSummary({
         <SummaryCard
           label="Status"
           value={settlementStatus}
+          compactValue
           icon={
             settlementCount === 0 && expenseCount > 0 ? (
               <CircleCheck aria-hidden="true" />
@@ -86,7 +95,7 @@ export function GroupSummary({
             )
           }
         />
-      </div>
+      </Card>
     </section>
   );
 }
