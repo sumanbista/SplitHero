@@ -102,14 +102,16 @@ export async function recordSettlementPayment(
       })),
     );
     const input = validation.data;
-    const isCurrentRecommendation = simplifySettlements(balances).some(
+    const currentRecommendation = simplifySettlements(balances).find(
       (recommendation) =>
         recommendation.fromMemberId === input.fromMemberId &&
-        recommendation.toMemberId === input.toMemberId &&
-        recommendation.amountCents === input.amountCents,
+        recommendation.toMemberId === input.toMemberId,
     );
 
-    if (!isCurrentRecommendation) {
+    if (
+      !currentRecommendation ||
+      input.amountCents > currentRecommendation.amountCents
+    ) {
       return { formError: unavailableMessage };
     }
 
