@@ -60,6 +60,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { explainMemberBalance } from "@/lib/calculations/balance-explanation";
 import { calculateMemberBalances } from "@/lib/calculations/balances";
 import { simplifySettlements } from "@/lib/calculations/settlements";
 import { getGroupAccess } from "@/lib/groups/access";
@@ -307,6 +308,34 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
     ...balance,
     memberName: memberNames.get(balance.memberId) ?? "Unknown member",
   }));
+  const explainableExpenses = expenses.map((expense) => ({
+    id: expense.id,
+    title: expense.title,
+    date: expense.expenseDate,
+    amountCents: expense.amountCents,
+    paidByMemberId: expense.paidByMemberId,
+    paidByName: expense.paidByName,
+    participantShares: expense.participants.map((participant) => ({
+      memberId: participant.memberId,
+      shareCents: participant.shareCents,
+    })),
+  }));
+  const explainablePayments = settlementPaymentRows.map((payment) => ({
+    id: payment.id,
+    date: payment.payment_date,
+    fromMemberId: payment.from_member_id,
+    fromMemberName:
+      memberNames.get(payment.from_member_id) ?? "Unknown member",
+    toMemberId: payment.to_member_id,
+    toMemberName: memberNames.get(payment.to_member_id) ?? "Unknown member",
+    amountCents: Number(payment.amount_cents),
+  }));
+  const balanceExplanations = Object.fromEntries(
+    members.map((member) => [
+      member.id,
+      explainMemberBalance(member.id, explainableExpenses, explainablePayments),
+    ]),
+  );
   const balanceByMemberId = new Map(
     calculatedBalances.map((balance) => [balance.memberId, balance.balanceCents]),
   );
@@ -611,6 +640,7 @@ export default async function GroupPage({ params, searchParams }: GroupPageProps
                   <BalanceList
                     balances={balances}
                     hasExpenses={expenses.length > 0}
+                    explanations={balanceExplanations}
                   />
                 </DashboardSection>
               </div>
